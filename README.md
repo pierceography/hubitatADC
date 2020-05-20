@@ -29,3 +29,7 @@ three newly created child devices: ADC Disarm, ADC Arm Stay, ADC Arm Away.
 Feel free to rename these to whatever suits you.
 
 Feedback on how to improve this project is always welcome.
+
+## To Do List
+- Encrypt password while in storage
+- Fix defaultValue bug in poll setting
