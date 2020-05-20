@@ -1,6 +1,6 @@
 /**
  *
- *  File: adc-driver.groovy
+ *  File: disarm-driver.groovy
  *  Platform: Hubitat
  *
  *
@@ -95,13 +95,13 @@ def getCurrentSwitchState() {
 
 
 def on() {
-	log.debug("ADC ${actionType} switched to ON")
+	debug("ADC ${actionType} switched to ON", "on()")
 	parent.switchStateUpdated(actionType, "on")
 }
 
 
 def off() {
-	log.debug("ADC ${actionType} switched to OFF")
+	debug("ADC ${actionType} switched to OFF", "off()")
 	parent.switchStateUpdated(actionType, "off")
 }
 
@@ -110,4 +110,23 @@ def initialize() {
     state.version = version()
 	
     refresh()
+}
+
+
+/******************************************************************************
+# Purpose: Log a debug message
+# 
+# Details: 
+# 
+******************************************************************************/
+private debug(logMessage, fromMethod="") {
+	if(parent.getDebugMode()) {
+		def fMethod = ""
+
+		if(fromMethod) {
+			fMethod = ".${fromMethod}"
+		}
+
+		log.debug("ADC-Device${fMethod}: ${logMessage}")
+	}
 }
