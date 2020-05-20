@@ -142,6 +142,9 @@ def mainPage() {
 			input "pollEvery", "enum", title: "Poll Panel Every X Minutes", options: ["1", "5", "10", "15", "30", "Never"], defaultValue: 1, required: true
 		}
 		section {
+			input "disarmOff", "enum", title: "How should switching disarm to off behave?", options: ["Do Nothing", "Arm Stay", "Arm Away"], defaultValue: "Do Nothing", required: true
+		}
+		section {
 			input "debugMode", "bool", title: "Enable debugging", defaultValue: true
 		}
 	}
@@ -175,10 +178,21 @@ def switchStateUpdated(switchType, switchState) {
 			setSystemStatus(switchType)
 			toggleOtherSwitchesTo(switchType, "off")
 		} else {
-			// do nothing
-			// you can't turn off disarm
-			// flip disarm back to "on"
-			updateSwitch(switchType, "on")
+			if(settings.disarmOff == "Arm Stay") {
+				def device = getChildDevice("${state.panelID}-armstay")
+				device.on()
+				debug("Default disarmOff behavior set to arm stay", "switchStateUpdated()")
+			} else if(settings.disarmOff == "Arm Away") {
+				def device = getChildDevice("${state.panelID}-armaway")
+				device.on()
+				debug("Default disarmOff behavior set to arm away", "switchStateUpdated()")
+			} else {
+				// do nothing
+				// you can't turn off disarm
+				// flip disarm back to "on"
+				debug("Default disarmOff behavior set to do nothing, switching back to on", "switchStateUpdated()")
+				updateSwitch(switchType, "on")
+			}
 		}
 	} else if(switchType == "armstay" || switchType == "armaway") {
 		if(switchState == "on") {
@@ -436,14 +450,6 @@ private setSystemStatus(status_key) {
 
 	params = [
 		uri : "https://www.alarm.com/web/api/devices/partitions/${state.panelID}/${adc_command}",
-/*		headers : [
-			"Cookie" : "ASP.NET_SessionId=${state.sessionID}; DNT=1; CookieTest=1; IsFromNewSite=1; afg=${state.afg};",
-//			"Content-Type" : "application/json",
-			"ajaxrequestuniquekey" : state.afg,
-//			"Host" : "www.alarm.com",
-//			"Content-Length" : post_data.length(),
-			"Accept" : "application/vnd.api+json"
-		],*/
 		headers : getStandardHeaders(),
 		body : post_data
 	]
