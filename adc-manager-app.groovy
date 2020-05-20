@@ -35,7 +35,7 @@
  *    2020-05-15  Jeff Pierce  Original Creation
  *    2020-05-18  Jeff Pierce  Added switch management, moved panel status from device to app
  *    2020-05-19  Jeff Pierce  Moved all alarm.com API calls away from separate service and to app
- *    2020-05-20  Jeff Pierce  Code cleanup, fixed some install/uninstall bugs
+ *    2020-05-20  Jeff Pierce  Code cleanup, fixed some install/uninstall bugs, added disarmOff behavior
  *
  */
 
