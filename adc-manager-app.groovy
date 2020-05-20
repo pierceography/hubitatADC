@@ -23,7 +23,7 @@
  * username: (email of user)
  * password: (password of user)
  * panelID: 1234569-123 (panel ID, determined at app install/update)
- * current_status: disarm|armstay|armaway
+ * currentStatus: disarm|armstay|armaway
  * afg: YPkyO88gkyVQyPphpBOojw==  (ajaxrequestuniquekey; used for authentication, refreshed every call)
  * sessionID: mjdgfmippicwkc52jwfcqu2l (ASP.NET sessionID; used for authentication, refreshed every call)
  *
@@ -35,11 +35,12 @@
  *    2020-05-15  Jeff Pierce  Original Creation
  *    2020-05-18  Jeff Pierce  Added switch management, moved panel status from device to app
  *    2020-05-19  Jeff Pierce  Moved all alarm.com API calls away from separate service and to app
+ *    2020-05-20  Jeff Pierce  Code cleanup, fixed some install/uninstall bugs
  *
  */
 
 String appVersion() { return "0.1.1" }
-String appModified() { return "2020-05-19"}
+String appModified() { return "2020-05-20"}
 String appAuthor() { return "Jeff Pierce" }
 
  definition(
@@ -55,7 +56,7 @@ String appAuthor() { return "Jeff Pierce" }
 
 
 preferences {
-	page(name: "mainPage", title: "Alarm.com Setup", install: true, uninstall: true)
+	page(name: "mainPage", title: "Alarm.com Manager Setup", install: true, uninstall: true)
 }
 
 
@@ -76,11 +77,13 @@ def uninstalled() {
 	debug("Uninstalling with settings: ${settings}", "uninstalled()")
 	unschedule()
 
-	removeChildDevices(getChildDevices())
+	removeChildDevices()
 }
 
 
 def updated() {
+	log.debug("password: ${password}, settings.password: ${settings.password}")
+
 	debug("Updated with settings: ${settings}", "updated()")
 
 	unsubscribe()
@@ -136,10 +139,10 @@ def mainPage() {
 			input "password", "password", title: "Alarm.com Password", required: true
 		}
 		section {
-			input "debugMode", "bool", title: "Enable debugging", defaultValue: true
+			input "pollEvery", "enum", title: "Poll Panel Every X Minutes", options: ["1", "5", "10", "15", "30", "Never"], defaultValue: 1, required: true
 		}
 		section {
-			input "pollEvery", "enum", title: "Poll Panel Every X Minutes", options: ["1", "5", "10", "15", "30", "Never"], defaultValue: "1", required: true
+			input "debugMode", "bool", title: "Enable debugging", defaultValue: true
 		}
 	}
 }
@@ -286,27 +289,31 @@ private getSystemAuthID() {
 		]
 	]
 
-	httpPost(params) { resp -> 
-		def afg = null;
-		def sessionID = null;
+	try {
+		httpPost(params) { resp -> 
+			def afg = null;
+			def sessionID = null;
 
-		// parse through the cookies to find the two authentication
-		// values we need, store in state memory
-		resp.getHeaders('Set-Cookie').each { cookie ->
-			def cookieObj = getCookie(cookie.toString())
+			// parse through the cookies to find the two authentication
+			// values we need, store in state memory
+			resp.getHeaders('Set-Cookie').each { cookie ->
+				def cookieObj = getCookie(cookie.toString())
 
-			if(cookieObj.key == "afg") {
-				afg = cookieObj.value
-			} else if(cookieObj.key == "ASP.NET_SessionId") {
-				sessionID = cookieObj.value
+				if(cookieObj.key == "afg") {
+					afg = cookieObj.value
+				} else if(cookieObj.key == "ASP.NET_SessionId") {
+					sessionID = cookieObj.value
+				}
 			}
+
+			debug("Received sessionID (${sessionID}) and afg (${afg})", "getSystemAuthID()")
+
+			// store the ASP session ID and afg as state values
+			state.sessionID = sessionID
+			state.afg = afg
 		}
-
-		debug("Received sessionID (${sessionID}) and afg (${afg})", "getSystemAuthID()")
-
-		// store the ASP session ID and afg as state values
-		state.sessionID = sessionID
-		state.afg = afg
+	} catch(e) {
+		logError("Authentication Error: Username or password not accepted; Please update these values in the ADC settings", "getSystemAuthID()")
 	}
 }
 
@@ -366,59 +373,6 @@ private getPanelID() {
 }
 
 
-/*
-private getPanelAttributes() {
-	def params = [
-		uri: "http://10.5.0.10:5050/system-attributes",
-		body: [
-			"username" : username,
-			"password" : password
-		]
-	]
-
-	try {
-		httpPostJson(params) { resp -> 
-			state.partition_id = resp.data.partition_id
-
-			try {
-				createChildDevices()
-			} catch(e) {
-				log.error "Failed to create child device with error = ${e}"
-			}
-		}
-	} catch(e) {
-		log.debug("httpPostJson error: ${e}")
-	}
-}
-*/
-
-
-private getSystemStatus_old() {
-	params = [
-		uri : "http://10.5.0.10:5050/system-state",
-		headers : [
-			"Host" : "10.5.0.10",
-			"Accept" : "application/json",
-			"Connection" : "close"
-		]
-	]
-
-	httpGet(params) { resp ->
-		updateHubStatus(resp.data.key)
-
-/*
-		if(resp.data.label == "Disarm") {
-			sendEvent([name: "switch", value: "off"]) 
-		} else if(resp.data.label == "Arm Stay") {
-			sendEvent([name: "switch", value: "on"])
-		} else {
-			sendEvent([name: "switch", value: "off"])
-		}
-*/
-	}
-}
-
-
 /******************************************************************************
 # Purpose: Get the current status of the alarm system
 # 
@@ -453,23 +407,6 @@ private getSystemStatus() {
 		}
 	} catch(e) {
 		logError("getSystemStatus", e)
-	}
-}
-
-
-private setSystemStatus_old(status_key) {
-	params = [
-		uri : "http://10.5.0.10:5050/${status_key}",
-		headers : [
-			"Host" : "10.5.0.10",
-			"Accept" : "application/json",
-			"Connection" : "close"
-		]
-	]
-
-	httpGet(params) { resp ->
-		log.debug("Panel set to ${status_key}")
-		state.current_status = status_key
 	}
 }
 
@@ -514,6 +451,7 @@ private setSystemStatus(status_key) {
 	try {
 		httpPost(params) { resp -> 
 			debug("Alarm.com accepted status of: ${status_key}", "setSystemStatus()")
+			settings.currentStatus = status_key
 		}
 	} catch(e) {
 		logError("setSystemStatus", e)
@@ -528,12 +466,12 @@ private setSystemStatus(status_key) {
 # this app (e.g. from the panel or another app)
 ******************************************************************************/
 private updateHubStatus(switchType) {
-	if(state.current_status != switchType) {
+	if(state.currentStatus != switchType) {
 		debug("System status updated to: ${switchType}", "updateHubStatus()")
 
 		updateSwitch(switchType, "on")
 		toggleOtherSwitchesTo(switchType, "off")
-		state.current_status = switchType
+		state.currentStatus = switchType
 	} else {
 		//log.debug("No update to system status: ${switchType}")
 	}
@@ -568,12 +506,16 @@ private createChildDevice(deviceType) {
 	def labelMap = getLabelMap()
 	def label = labelMap[deviceType]
 
-	// create the child device
-	addChildDevice("jmpierce", "Alarm.com Panel Switch", "${state.panelID}-${deviceType}", null, [label : "ADC ${label}", isComponent: false, name: "ADC ${label}"])
-	createdDevice = getChildDevice("${state.panelID}-${deviceType}")
-	createdDevice.setActionType(deviceType)
+	try {
+		// create the child device
+		addChildDevice("jmpierce", "Alarm.com Panel Switch", "${state.panelID}-${deviceType}", null, [label : "ADC ${label}", isComponent: false, name: "ADC ${label}"])
+		createdDevice = getChildDevice("${state.panelID}-${deviceType}")
+		createdDevice.setActionType(deviceType)
 
-	debug("Child device ${state.panelID}-${switchType} created", "createChildDevice()")
+		debug("Child device ${state.panelID}-${deviceType} created", "createChildDevice()")
+	} catch(e) {
+		logError("Failed to add child device with error: ${e}", "createChildDevice()")
+	}
 }
 
 
