@@ -41,7 +41,7 @@ metadata {
 
 preferences {
 	input(name: "actionType", type: "enum", title: "Switch Performs Action", options: ["disarm", "armstay", "armaway"], required: true)
-    input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
+    //input name: "logEnable", type: "bool", title: "Enable debug logging", defaultValue: true
 }
 
 def setActionType(actionType) {
