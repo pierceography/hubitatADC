@@ -66,13 +66,13 @@ def refresh() {
 
 
 def installed() {
-    log.info "ADC Switch installed() called"
+    debug("Switch installed", "updated()")
     updated()
 }
 
 
 def updated() {
-    log.info "ADC Switch updated() called"
+    debug("Switch updated", "updated()")
     //Unschedule any existing schedules
     unschedule()
     
@@ -80,7 +80,7 @@ def updated() {
  //   if (logEnable) runIn(1800,logsOff)
     
 //	runEvery1Minute(switchPollStatus)
-    refresh()
+//    refresh()
 }
 
 
