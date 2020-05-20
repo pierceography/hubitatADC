@@ -1,6 +1,6 @@
 /**
  *
- *  File: adc-manager-app.groovy
+ *  File: adc-manager.groovy
  *  Platform: Hubitat
  *
  *
@@ -56,15 +56,16 @@ String appAuthor() { return "Jeff Pierce" }
 
 preferences {
 	page(name: "mainPage", title: "Alarm.com Setup", install: true, uninstall: true)
-//	page(name: "accountInfo", title: "Account Information")
 }
 
 
 def installed() {
-	log.debug "Installed with settings: ${settings}"
+	debug("Installed with settings: ${settings}", "installed()")
 
-	log.debug("Acquiring ADC panel attributes")
-	getPanelAttributes()
+	// app installed, acquire panelID
+	getPanelID()
+
+	// create child devices
 	createChildDevices()
 
 	initialize()
@@ -72,7 +73,7 @@ def installed() {
 
 
 def uninstalled() {
-	log.debug("Uninstalling with settings: ${settings}")
+	debug("Uninstalling with settings: ${settings}", "uninstalled()")
 	unschedule()
 
 	removeChildDevices(getChildDevices())
@@ -80,49 +81,66 @@ def uninstalled() {
 
 
 def updated() {
-	// THIS NEEDS TO BE UPDATED TO PERFORM ACTIONS WHEN APP AUTH UPDATED
-//	getPanelAttributes()
+	debug("Updated with settings: ${settings}", "updated()")
+
+	unsubscribe()
+
+	// app updated, re-acquire panelID
+	getPanelID()
 
 	// update child devices after app updated
 	updateChildDevices()
 
-	//log.debug "Updated with settings: ${settings}"
-	unsubscribe()
 	initialize()
-
-	getPanelID()
 }
 
 
 def initialize() {
-	log.debug("ADC initializing")
+	debug("ADC initializing", "initialize()")
 	// remove location subscription aftwards
 	unsubscribe()
 	state.subscribe = false
 
-	runEvery1Minute(pollSystemStatus)
+	// setup the system to poll ADC web services for updates
+	if("${pollEvery}" == "1") {
+		debug("Panel polling set for every 1 minute", "initialize()")
+		runEvery1Minute(pollSystemStatus)
+	} else if("${pollEvery}" == "5") {
+		debug("Panel polling set for every 5 minutes", "initialize()")
+		runEvery5Minutes(pollSystemStatus)
+	} else if("${pollEvery}" == "10") {
+		debug("Panel polling set for every 10 minutes", "initialize()")
+		runEvery10Minutes(pollSystemStatus)
+	} else if("${pollEvery}" == "15") {
+		debug("Panel polling set for every 15 minutes", "initialize()")
+		runEvery15Minutes(pollSystemStatus)
+	} else if("${pollEvery}" == "30") {
+		debug("Panel polling set for every 30 minutes", "initialize()")
+		runEvery30Minutes(pollSystemStatus)
+	} else {
+		debug("Panel polling disabled", "initialize()")
+		log.warn("ADC Panel polling disabled -- Panel updates will not be reflected in the hub")
+	}
 
-	// TEMPORARY
-	getSystemAuthID()
+	// immediately get an updated status
 	getSystemStatus()
 }
 
 
 def mainPage() {
-    dynamicPage(name: "main", title: "Alarm.com Setup", uninstall: true, install: true, nextPage: "nextPageSub") {
+    dynamicPage(name: "main", title: "Alarm.com Setup", uninstall: true, install: true) {
 		section {
 			input "username", "text", title: "Alarm.com Username (Email)", required: true
 		}
 		section {
 			input "password", "password", title: "Alarm.com Password", required: true
 		}
-	}
-}
-
-
-def nextPageSub() {
-	dynamicPage(name: "next", title: "Next Page") {
-		section("Thank You") { }
+		section {
+			input "debugMode", "bool", title: "Enable debugging", defaultValue: true
+		}
+		section {
+			input "pollEvery", "enum", title: "Poll Panel Every X Minutes", options: ["1", "5", "10", "15", "30", "Never"], defaultValue: "1", required: true
+		}
 	}
 }
 
@@ -145,6 +163,8 @@ def pollSystemStatus() {
 # 
 ******************************************************************************/
 def switchStateUpdated(switchType, switchState) {
+	debug("Setting ${switchType} to ${switchState}", "switchStateUpdated()")
+
 	updateSwitch(switchType, switchState)
 
 	if(switchType == "disarm") {
@@ -168,6 +188,16 @@ def switchStateUpdated(switchType, switchState) {
 	}
 }
 
+
+/******************************************************************************
+# Purpose: Return boolean value indicated if debug mode is activated
+# 
+# Details: 
+# 
+******************************************************************************/
+def getDebugMode() {
+	return debugMode
+}
 
 /***** PRIVATE METHODS *****/
 
@@ -206,7 +236,7 @@ private getSwitchTypes() {
 private updateSwitch(switchType, switchState) {
 	def device = getChildDevice("${state.panelID}-${switchType}")
 	def currentState = device.getCurrentSwitchState()
-	//log.debug("Setting ${state.partition_id}-${switchType} to ${switchState}")
+	debug("Setting ${state.panelID}-${switchType} to ${switchState}", "updateSwitch()")
 	device.sendEvent([name: "switch", value: switchState])
 }
 
@@ -218,6 +248,8 @@ private updateSwitch(switchType, switchState) {
 # 
 ******************************************************************************/
 private toggleOtherSwitchesTo(switchTypeExclude, switchState) {
+	debug("Toggling all switches that are not ${switchTypeExclude} to ${switchState}", "toggleOtherSwitchesTo()")
+
 	getSwitchTypes().each{switchType ->
 		// ignore the switch type being excluded
 		if(switchType == switchTypeExclude) {
@@ -236,6 +268,8 @@ private toggleOtherSwitchesTo(switchTypeExclude, switchState) {
 # ASP.NET_SessionId (returned as a cookie)
 ******************************************************************************/
 private getSystemAuthID() {
+	debug("Getting refreshed authentication credentials", "getSystemAuthID()")
+
 	// Hubitat likes to escape certain characters when transporting their form
 	// values, so we need to revert them to their originals
 	def settingsPassword = URLEncoder.encode(unHtmlValue(password))
@@ -268,6 +302,8 @@ private getSystemAuthID() {
 			}
 		}
 
+		debug("Received sessionID (${sessionID}) and afg (${afg})", "getSystemAuthID()")
+
 		// store the ASP session ID and afg as state values
 		state.sessionID = sessionID
 		state.afg = afg
@@ -282,6 +318,9 @@ private getSystemAuthID() {
 # The account ID must first be fetched, then used to fetch the partition ID
 ******************************************************************************/
 private getPanelID() {
+	// first we need to refresh our auth values
+	getSystemAuthID()
+
 	def accountID = null
 
 	// first we need to get the account ID
@@ -298,6 +337,8 @@ private getPanelID() {
 		httpGet(params) { resp ->
 			def json = parseJson(resp.data.text)
 			accountID = json.data[0].relationships.accountInformation.data.id
+
+			debug("Received accountID (${accountID})", "getPanelID()")
 		}
 	} catch(e) {
 		logError("getPanelID:GettingAccountID", e)
@@ -315,6 +356,8 @@ private getPanelID() {
 		httpGet(params) { resp ->
 			def json = parseJson(resp.data.text)
 			state.panelID = json.data.relationships.partitions.data[0].id
+
+			debug("Received panelID (${state.panelID})", "getPanelID()")
 		}
 	} catch(e) {
 		logError("getPanelID:GettingPanelID", e)
@@ -383,6 +426,9 @@ private getSystemStatus_old() {
 #
 ******************************************************************************/
 private getSystemStatus() {
+	// first we need to refresh our auth values
+	getSystemAuthID()
+
 	params = [
 		uri : "https://www.alarm.com/web/api/devices/partitions/${state.panelID}",
 		headers : getStandardHeaders()
@@ -402,7 +448,7 @@ private getSystemStatus() {
 				status_key = "armaway"
 			}
 
-			log.debug("Alarm.com returned status of: (${current_status}) - ${status_key}")
+			debug("Alarm.com returned a panel status of: ${current_status} - ${status_key}", "getSystemStatus()")
 			updateHubStatus(status_key)
 		}
 	} catch(e) {
@@ -435,6 +481,11 @@ private setSystemStatus_old(status_key) {
 # (currently does not allow for delayed arming)
 ******************************************************************************/
 private setSystemStatus(status_key) {
+	// first we need to refresh our auth values
+	getSystemAuthID()
+
+	debug("Attempting to set a panel status of: ${status_key}", "setSystemStatus()")
+
 	def adc_command = null;
 	def post_data = '{"statePollOnly":false}'
 
@@ -462,7 +513,7 @@ private setSystemStatus(status_key) {
 	
 	try {
 		httpPost(params) { resp -> 
-			log.info("Alarm.com accepted status of: ${status_key}")
+			debug("Alarm.com accepted status of: ${status_key}", "setSystemStatus()")
 		}
 	} catch(e) {
 		logError("setSystemStatus", e)
@@ -478,7 +529,7 @@ private setSystemStatus(status_key) {
 ******************************************************************************/
 private updateHubStatus(switchType) {
 	if(state.current_status != switchType) {
-		//log.debug("System status updated to: ${switchType}")
+		debug("System status updated to: ${switchType}", "updateHubStatus()")
 
 		updateSwitch(switchType, "on")
 		toggleOtherSwitchesTo(switchType, "off")
@@ -500,6 +551,7 @@ private createChildDevices() {
 		def existingDevice = getChildDevice("${state.panelID}-${switchType}")
 
 		if(!existingDevice) {
+			debug("Creating child device: ${state.panelID}-${switchType}", "createChildDevices()")
 			createChildDevice(switchType)
 		}
 	}
@@ -520,6 +572,8 @@ private createChildDevice(deviceType) {
 	addChildDevice("jmpierce", "Alarm.com Panel Switch", "${state.panelID}-${deviceType}", null, [label : "ADC ${label}", isComponent: false, name: "ADC ${label}"])
 	createdDevice = getChildDevice("${state.panelID}-${deviceType}")
 	createdDevice.setActionType(deviceType)
+
+	debug("Child device ${state.panelID}-${switchType} created", "createChildDevice()")
 }
 
 
@@ -536,7 +590,7 @@ private updateChildDevices() {
 		def device = getChildDevice("${state.panelID}-${switchType}")
 
 		if(!device) {
-			log.info("ADC device does not exist, creating: ${switchType}")
+			debug("ADC device does not exist, creating: ${state.panelID}-${switchType}", "updateChildDevices()")
 			createChildDevice(switchType)
 		}
 	}
@@ -549,11 +603,12 @@ private updateChildDevices() {
 # Details: 
 # 
 ******************************************************************************/
-private removeChildDevices(data) {
+private removeChildDevices() {
 	def switchTypes = getSwitchTypes()
 
 	try {
 		switchTypes.each {switchType ->
+			debug("Removing child device: ${state.panelID}-${switchType}", "removeChildDevices()")
 			deleteChildDevice("${state.panelID}-${switchType}")
 		}
 	} catch(e) {
@@ -630,6 +685,25 @@ private getStandardHeaders(options = []) {
 ******************************************************************************/
 private getCookieString() {
 	return "ASP.NET_SessionId=${state.sessionID}; CookieTest=1; IsFromNewSite=1; afg=${state.afg};"
+}
+
+
+/******************************************************************************
+# Purpose: Log a debug message
+# 
+# Details: 
+# 
+******************************************************************************/
+private debug(logMessage, fromMethod="") {
+	if(debugMode) {
+		def fMethod = ""
+
+		if(fromMethod) {
+			fMethod = ".${fromMethod}"
+		}
+
+		log.debug("ADC-App${fMethod}: ${logMessage}")
+	}
 }
 
 
