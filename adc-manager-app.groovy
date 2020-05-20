@@ -1,6 +1,6 @@
 /**
  *
- *  File: adc-manager.groovy
+ *  File: adc-manager-app.groovy
  *  Platform: Hubitat
  *
  *
