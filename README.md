@@ -1,7 +1,7 @@
 # hubitatADC
 Hubitat Alarm.com App and Driver
 
-# Hubitat ADC App v0.1.1 (In development)
+# Hubitat ADC App v1.1.0
 Hubitat Elevation app and device handler for alarm.com
 
 ## What can I do with this app?
@@ -28,8 +28,27 @@ Once your panel ID has been discovered, your panel can be controlled via the
 three newly created child devices: ADC Disarm, ADC Arm Stay, ADC Arm Away.
 Feel free to rename these to whatever suits you.
 
+At any given time, one of the three switches will always be "on".  For example,
+if your panel is armed stay, both arm away and disarm will be "off".  To
+disarm your panel, you can either turn "on" disarm or turn "off" arm stay.  If
+you wish to represent your panel with a single (most used) mode, add either
+arm stay or arm away to a dashboard or HUD of your choosing.
+
+Password encryption notes:  It is recommended that you select password
+encryption so that your alarm.com password is encrypted on the HE device.
+If you enable encryption, once your password is set it will not be populated
+in the preferences form.  If you update the app preferences, you can leave the
+password field blank and the existing encrypted value will be retained.  If
+you do not elect to encrypt your password, it will be re-populated in the
+preferences form for future updates.
+
+It is also highly recommended that you use a secondary (service) account
+with reduced privleges that limit its ability to alter any alarm.com settings
+other than panel modes.
+
 Feedback on how to improve this project is always welcome.
 
 ## To Do List
-- Encrypt password while in storage
 - Fix defaultValue bug in poll setting
+- Add flag to remove the disarm switch for those who would prefer to just use
+arm stay and arm away as toggles
