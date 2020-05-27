@@ -52,3 +52,8 @@ Feedback on how to improve this project is always welcome.
 - Fix defaultValue bug in poll setting
 - Add flag to remove the disarm switch for those who would prefer to just use
 arm stay and arm away as toggles
+
+## v1.1.0 Changes
+- Added password encryption option
+- Fixed poll bug that did not properly unschedule previously set polling preference
+- Code cleanup and more comments
