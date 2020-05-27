@@ -37,11 +37,12 @@
  *    2020-05-19  Jeff Pierce  Moved all alarm.com API calls away from separate service and to app
  *    2020-05-20  Jeff Pierce  Code cleanup, fixed some install/uninstall bugs, added disarmOff behavior
  *    2020-05-22  Jeff Pierce  Removed unnecessary debugging statements
+ *    2020-05-26  Jeff Pierce  Added password encryption, fixed unschedule() issue, cleaned up code more
  *
  */
 
-String appVersion() { return "0.1.1" }
-String appModified() { return "2020-05-20"}
+String appVersion() { return "1.1.0" }
+String appModified() { return "2020-05-26"}
 String appAuthor() { return "Jeff Pierce" }
 
  definition(
@@ -62,15 +63,19 @@ preferences {
 
 
 def installed() {
+	passwordEncryption()
+
 	debug("Installed with settings: ${settings}", "installed()")
 
-	// app installed, acquire panelID
-	getPanelID()
+	if(sanityCheck()) {
+		// app installed, acquire panelID
+		getPanelID()
 
-	// create child devices
-	createChildDevices()
+		// create child devices
+		createChildDevices()
 
-	initialize()
+		initialize()
+	}
 }
 
 
@@ -83,24 +88,29 @@ def uninstalled() {
 
 
 def updated() {
+	unsubscribe()
+	unschedule()
+
+	// handle password encryption
+	passwordEncryption()
+
 	debug("Updated with settings: ${settings}", "updated()")
 
-	unsubscribe()
+	if(sanityCheck()) {
+		// app updated, re-acquire panelID
+		getPanelID()
 
-	// app updated, re-acquire panelID
-	getPanelID()
+		// update child devices after app updated
+		updateChildDevices()
 
-	// update child devices after app updated
-	updateChildDevices()
-
-	initialize()
+		initialize()
+	}
 }
 
 
 def initialize() {
-	debug("ADC initializing", "initialize()")
+	debug("Initializing Alarm.com Manager", "initialize()")
 	// remove location subscription aftwards
-	unsubscribe()
 	state.subscribe = false
 
 	// setup the system to poll ADC web services for updates
@@ -135,13 +145,16 @@ def mainPage() {
 			input "username", "text", title: "Alarm.com Username (Email)", required: true
 		}
 		section {
-			input "password", "password", title: "Alarm.com Password", required: true
+			input "password", "password", title: "Alarm.com Password", required: false
 		}
 		section {
 			input "pollEvery", "enum", title: "Poll Panel Every X Minutes", options: ["1", "5", "10", "15", "30", "Never"], defaultValue: 1, required: true
 		}
 		section {
 			input "disarmOff", "enum", title: "How should switching disarm to off behave?", options: ["Do Nothing", "Arm Stay", "Arm Away"], defaultValue: "Do Nothing", required: true
+		}
+		section {
+			input "encryptPassword", "bool", title: "Encrypt Password", description: "The password will be encrypted when stored on the hub", defaultValue: true
 		}
 		section {
 			input "debugMode", "bool", title: "Enable debugging", defaultValue: true
@@ -173,22 +186,30 @@ def switchStateUpdated(switchType, switchState) {
 	updateSwitch(switchType, switchState)
 
 	if(switchType == "disarm") {
+		// disarm was set to "on"
 		if(switchState == "on") {
+			// disarm the panel, set all other ADC switches to "off"
 			setSystemStatus(switchType)
 			toggleOtherSwitchesTo(switchType, "off")
 		} else {
+			// disarm was set to "off"
+			// determine how we will treat "turning disarm off"
 			if(settings.disarmOff == "Arm Stay") {
+				// disarmOff preference set to arm stay
+				// set panel for arm stay
 				def device = getChildDevice("${state.panelID}-armstay")
 				device.on()
 				debug("Default disarmOff behavior set to arm stay", "switchStateUpdated()")
 			} else if(settings.disarmOff == "Arm Away") {
+				// disarmOff preference set to arm away
+				// set panel for arm away
 				def device = getChildDevice("${state.panelID}-armaway")
 				device.on()
 				debug("Default disarmOff behavior set to arm away", "switchStateUpdated()")
 			} else {
 				// do nothing
-				// you can't turn off disarm
-				// flip disarm back to "on"
+				// disarmOff set to do nothing, or not set at all
+				// since one ADC switch always needs to be "on", set disarm back to "on"
 				debug("Default disarmOff behavior set to do nothing, switching back to on", "switchStateUpdated()")
 				updateSwitch(switchType, "on")
 			}
@@ -244,6 +265,52 @@ private getSwitchTypes() {
 
 
 /******************************************************************************
+# Purpose: Handle the password encryption user preference
+# 
+# Details: If password encryption is enabled, check to see if a password has
+# been provided.  If so, encrypt it and store as a non-user input setting,
+# then clear out the user provided password.  If no encryption requested,
+# clear out any residual encryption values from settings.
+******************************************************************************/
+private passwordEncryption() {
+	if(settings.password && settings.encryptPassword) {
+		app.updateSetting("encryptedPassword", [value: encrypt(settings.password), type: "string"])
+		settings.encryptedPassword = encrypt(settings.password)
+
+		// clear out the unecrypted password
+		app.updateSetting("password", [value: "", type: "password"])
+		settings.password = ""
+
+		debug("Password encryption requested, and successfully completed")
+	} else if(settings.password) { // password not encrypted, clear any residual encryption values
+		app.updateSetting("encryptedPassword", [value: "", type: "string"])
+		settings.encryptedPassword = ""
+
+		debug("Password encryption not requested, stored as plain text")
+	}
+}
+
+
+/******************************************************************************
+# Purpose: Perform checks to ensure application is ready to start
+# 
+# Details: Check to ensure a password has been provided
+# Return true if ready, false if problems and log message to system logs
+******************************************************************************/
+private sanityCheck() {
+	if(settings.encryptPassword && !settings.encryptedPassword) {
+		log.error("ADC FATAL ERROR: No encrypted password has been specified; Please enter a password in the application preferences screen.")
+		return false
+	} else if(!settings.password && !settings.encryptPassword) {
+		log.error("ADC FATAL ERROR: No password has been specified; Please enter a password in the application preferences screen.")
+		return false
+	} else {
+		return true;
+	}
+}
+
+
+/******************************************************************************
 # Purpose: Update a switch's state from within this app
 # 
 # Details: To be used from within this app; To update switch states within
@@ -287,8 +354,16 @@ private getSystemAuthID() {
 	debug("Getting refreshed authentication credentials", "getSystemAuthID()")
 
 	// Hubitat likes to escape certain characters when transporting their form
-	// values, so we need to revert them to their originals
-	def settingsPassword = URLEncoder.encode(unHtmlValue(password))
+	// values, so we need to revert them to their originals (unHtmlValue)
+	// Determine if password has been encrypted locally
+	def settingsPassword = ""
+	
+	if(settings.encryptPassword) {
+		settingsPassword = URLEncoder.encode(unHtmlValue(decrypt(settings.encryptedPassword)))
+	} else {
+		settingsPassword = URLEncoder.encode(unHtmlValue(password))
+	}
+
 	def loginString = "IsFromNewSite=1&txtUserName=${username}&txtPassword=${settingsPassword}"
 	
 	def params = [
