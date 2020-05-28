@@ -38,11 +38,12 @@
  *    2020-05-20  Jeff Pierce  Code cleanup, fixed some install/uninstall bugs, added disarmOff behavior
  *    2020-05-22  Jeff Pierce  Removed unnecessary debugging statements
  *    2020-05-26  Jeff Pierce  Added password encryption, fixed unschedule() issue, cleaned up code more
+ *    2020-05-27  Jeff Pierce  Fixed a bug that created switches even with a bad auth attempt
  *
  */
 
-String appVersion() { return "1.1.0" }
-String appModified() { return "2020-05-26"}
+String appVersion() { return "1.1.1" }
+String appModified() { return "2020-05-27"}
 String appAuthor() { return "Jeff Pierce" }
 
  definition(
@@ -70,6 +71,11 @@ def installed() {
 	if(sanityCheck()) {
 		// app installed, acquire panelID
 		getPanelID()
+
+		if(!state.afg || !state.sessionID) {
+			logError("Authentication failed -- Unable to finish install!", "installed()")
+			return
+		}
 
 		// create child devices
 		createChildDevices()
@@ -100,6 +106,11 @@ def updated() {
 		// app updated, re-acquire panelID
 		getPanelID()
 
+		if(!state.afg || !state.sessionID) {
+			logError("Authentication failed -- Unable to finish update!", "updated()")
+			return
+		}
+
 		// update child devices after app updated
 		updateChildDevices()
 
@@ -110,6 +121,10 @@ def updated() {
 
 def initialize() {
 	debug("Initializing Alarm.com Manager", "initialize()")
+
+	unsubscribe()
+	unschedule()
+
 	// remove location subscription aftwards
 	state.subscribe = false
 
@@ -183,8 +198,10 @@ def pollSystemStatus() {
 def switchStateUpdated(switchType, switchState) {
 	debug("Setting ${switchType} to ${switchState}", "switchStateUpdated()")
 
+	// update the child device
 	updateSwitch(switchType, switchState)
 
+	// determine what actions should be taken based on disarm/arm stay/arm away
 	if(switchType == "disarm") {
 		// disarm was set to "on"
 		if(switchState == "on") {
@@ -470,6 +487,11 @@ private getPanelID() {
 private getSystemStatus() {
 	// first we need to refresh our auth values
 	getSystemAuthID()
+
+	// ensure we have a valid panelID
+	if(!state.panelID) {
+		getPanelID()
+	}
 
 	params = [
 		uri : "https://www.alarm.com/web/api/devices/partitions/${state.panelID}",
