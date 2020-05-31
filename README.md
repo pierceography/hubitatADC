@@ -1,7 +1,7 @@
 # hubitatADC
 Hubitat Alarm.com App and Driver
 
-# Hubitat ADC App v1.1.0
+# Hubitat ADC App v1.1.2
 Hubitat Elevation app and device handler for alarm.com
 
 ## What can I do with this app?
@@ -49,11 +49,15 @@ other than panel modes.
 Feedback on how to improve this project is always welcome.
 
 ## To Do List
-- Fix defaultValue bug in poll setting
 - Add flag to remove the disarm switch for those who would prefer to just use
 arm stay and arm away as toggles
+- Add ability to support multiple accounts to the same panel
 
 ## v1.1.0 Changes
 - Added password encryption option
 - Fixed poll bug that did not properly unschedule previously set polling preference
 - Code cleanup and more comments
+
+## v1.1.2 Changes
+- Added additional polling options
+- Fixed polling default value bug
