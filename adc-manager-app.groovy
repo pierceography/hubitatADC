@@ -3,6 +3,7 @@
  *  File: adc-manager.groovy
  *  Platform: Hubitat
  *
+ *  https://github.com/pierceography/hubitatADC
  *
  *  Requirements:
  *     1) RESTful API to transform simple device requests into alarm.com states
@@ -39,11 +40,12 @@
  *    2020-05-22  Jeff Pierce  Removed unnecessary debugging statements
  *    2020-05-26  Jeff Pierce  Added password encryption, fixed unschedule() issue, cleaned up code more
  *    2020-05-27  Jeff Pierce  Fixed a bug that created switches even with a bad auth attempt
+ *    2020-05-31  Jeff Pierce  Added additional polling options, fixed default value in polling bug
  *
  */
 
-String appVersion() { return "1.1.1" }
-String appModified() { return "2020-05-27"}
+String appVersion() { return "1.1.2" }
+String appModified() { return "2020-05-31"}
 String appAuthor() { return "Jeff Pierce" }
 
  definition(
@@ -129,21 +131,27 @@ def initialize() {
 	state.subscribe = false
 
 	// setup the system to poll ADC web services for updates
-	if("${pollEvery}" == "1") {
+	if("${pollEvery}" == "1 Minute") {
 		debug("Panel polling set for every 1 minute", "initialize()")
 		runEvery1Minute(pollSystemStatus)
-	} else if("${pollEvery}" == "5") {
+	} else if("${pollEvery}" == "5 Minutes") {
 		debug("Panel polling set for every 5 minutes", "initialize()")
 		runEvery5Minutes(pollSystemStatus)
-	} else if("${pollEvery}" == "10") {
+	} else if("${pollEvery}" == "10 Minutes") {
 		debug("Panel polling set for every 10 minutes", "initialize()")
 		runEvery10Minutes(pollSystemStatus)
-	} else if("${pollEvery}" == "15") {
+	} else if("${pollEvery}" == "15 Minutes") {
 		debug("Panel polling set for every 15 minutes", "initialize()")
 		runEvery15Minutes(pollSystemStatus)
-	} else if("${pollEvery}" == "30") {
+	} else if("${pollEvery}" == "30 Minutes") {
 		debug("Panel polling set for every 30 minutes", "initialize()")
 		runEvery30Minutes(pollSystemStatus)
+	} else if("${pollEvery}" == "60 Minutes") {
+		debug("Panel polling set for every 60 minutes", "initialize()")
+		runEvery1Hour(pollSystemStatus)
+	} else if("${pollEvery}" == "3 Hours") {
+		debug("Panel polling set for every 3 hours", "initialize()")
+		runEvery3Hours(pollSystemStatus)
 	} else {
 		debug("Panel polling disabled", "initialize()")
 		log.warn("ADC Panel polling disabled -- Panel updates will not be reflected in the hub")
@@ -163,7 +171,7 @@ def mainPage() {
 			input "password", "password", title: "Alarm.com Password", required: false
 		}
 		section {
-			input "pollEvery", "enum", title: "Poll Panel Every X Minutes", options: ["1", "5", "10", "15", "30", "Never"], defaultValue: 1, required: true
+			input "pollEvery", "enum", title: "How often should the panel be polled for updates?", options: ["1 Minute", "5 Minutes", "10 Minutes", "15 Minutes", "30 Minutes", "60 Minutes", "3 Hours", "Never"], defaultValue: "30 Minutes", required: true
 		}
 		section {
 			input "disarmOff", "enum", title: "How should switching disarm to off behave?", options: ["Do Nothing", "Arm Stay", "Arm Away"], defaultValue: "Do Nothing", required: true
