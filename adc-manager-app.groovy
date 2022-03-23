@@ -171,6 +171,9 @@ def mainPage() {
 			input "password", "password", title: "Alarm.com Password", required: false
 		}
 		section {
+			input "twoFactorAuthenticationId", "twoFactorAuthenticationId", title: "twoFactorAuthenticationId from browser", required: false
+		}
+		section {
 			input "pollEvery", "enum", title: "How often should the panel be polled for updates?", options: ["1 Minute", "5 Minutes", "10 Minutes", "15 Minutes", "30 Minutes", "60 Minutes", "3 Hours", "Never"], defaultValue: "30 Minutes", required: true
 		}
 		section {
@@ -398,7 +401,8 @@ private getSystemAuthID() {
 		headers : [
 			"Host" : "www.alarm.com",
 			"Content-Type" : "application/x-www-form-urlencoded",
-			"Connection" : "close"
+			"Connection" : "close",
+			"Cookie": "twoFactorAuthenticationId=${twoFactorAuthenticationId}"
 		]
 	]
 
