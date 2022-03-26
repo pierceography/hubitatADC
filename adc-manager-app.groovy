@@ -1,4 +1,4 @@
-/* groovylint-disable CompileStatic, DuplicateStringLiteral, FactoryMethodName, JavadocConsecutiveEmptyLines, JavadocEmptyFirstLine, JavadocEmptyLastLine, LineLength, MethodCount, NoDef, ParameterName, UnnecessaryGString */
+/* groovylint-disable CompileStatic, DuplicateStringLiteral, FactoryMethodName, JavadocConsecutiveEmptyLines, JavadocEmptyFirstLine, JavadocEmptyLastLine, LineLength, MethodCount, MethodReturnTypeRequired, NoDef, ParameterName, UnnecessaryGString, UnnecessaryGetter */
 /**
  *
  *  File: adc-manager.groovy
@@ -192,7 +192,7 @@ def mainPage() {
 #
 ******************************************************************************/
 def pollSystemStatus() {
-    return getSystemStatus();
+    return getSystemStatus()
 }
 
 /******************************************************************************
@@ -324,7 +324,7 @@ private sanityCheck() {
         log.error("ADC FATAL ERROR: No password has been specified; Please enter a password in the application preferences screen.")
         return false
     } else {
-        return true;
+        return true
     }
 }
 
@@ -352,7 +352,7 @@ private toggleOtherSwitchesTo(switchTypeExclude, switchState) {
     getSwitchTypes().each{switchType ->
         // ignore the switch type being excluded
         if (switchType == switchTypeExclude) {
-            return;
+            return
         }
 
         updateSwitch(switchType, switchState)
@@ -396,8 +396,8 @@ private getSystemAuthID() {
 
     try {
         httpPost(params) { resp ->
-            def afg = null;
-            def sessionID = null;
+            def afg = null
+            def sessionID = null
 
             // parse through the cookies to find the two authentication
             // values we need, store in state memory
@@ -528,7 +528,7 @@ private setSystemStatus(status_key) {
 
     debug("Attempting to set a panel status of: ${status_key}", "setSystemStatus()")
 
-    def adc_command = null;
+    def adc_command = null
     def post_data = '{"statePollOnly":false}'
 
     if (status_key == "disarm") {
