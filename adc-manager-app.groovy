@@ -1,4 +1,4 @@
-/* groovylint-disable MethodCount */
+/* groovylint-disable LineLength, MethodCount */
 /**
  *
  *  File: adc-manager.groovy
@@ -468,7 +468,6 @@ private getPanelID() {
 		}
 	} catch(e) {
 		logError("getPanelID:GettingAccountID", e)
-		return
 	}
 
 	params = [
@@ -487,7 +486,6 @@ private getPanelID() {
 		}
 	} catch(e) {
 		logError("getPanelID:GettingPanelID", e)
-		return
 	}
 }
 
