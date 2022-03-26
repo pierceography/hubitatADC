@@ -664,8 +664,7 @@ private unHtmlValue(valueToDecode) {
 #
 ******************************************************************************/
 private getCookie(cookie) {
-    cookie = cookie.replace("Set-Cookie: ", '')
-    def pieces = cookie.split(';')
+    def pieces = cookie.replace("Set-Cookie: ", '').split(';')
     def kv = pieces[0].split('=', 2)
 
     try {
