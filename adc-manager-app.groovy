@@ -1,4 +1,4 @@
-/* groovylint-disable CompileStatic, DuplicateStringLiteral, FactoryMethodName, JavadocConsecutiveEmptyLines, JavadocEmptyFirstLine, JavadocEmptyLastLine, LineLength, MethodCount, MethodReturnTypeRequired, NoDef, ParameterName, UnnecessaryGString, UnnecessaryGetter */
+/* groovylint-disable CompileStatic, DuplicateStringLiteral, FactoryMethodName, JavadocConsecutiveEmptyLines, JavadocEmptyFirstLine, JavadocEmptyLastLine, LineLength, MethodCount, MethodParameterTypeRequired, MethodReturnTypeRequired, NoDef, ParameterName, UnnecessaryGString, UnnecessaryGetter, UnnecessarySetter, VariableTypeRequired */
 /**
  *
  *  File: adc-manager.groovy
@@ -323,9 +323,8 @@ private sanityCheck() {
     } else if (!settings.password && !settings.encryptPassword) {
         log.error("ADC FATAL ERROR: No password has been specified; Please enter a password in the application preferences screen.")
         return false
-    } else {
-        return true
     }
+    return true
 }
 
 /******************************************************************************
