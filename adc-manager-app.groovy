@@ -1,4 +1,4 @@
-/* groovylint-disable CompileStatic, DuplicateStringLiteral, FactoryMethodName, JavadocConsecutiveEmptyLines, JavadocEmptyFirstLine, JavadocEmptyLastLine, LineLength, MethodCount, MethodParameterTypeRequired, MethodReturnTypeRequired, NoDef, ParameterName, UnnecessaryGString, UnnecessaryGetter, UnnecessarySetter, VariableTypeRequired */
+/* groovylint-disable CompileStatic, CouldBeSwitchStatement, DuplicateNumberLiteral, DuplicateStringLiteral, FactoryMethodName, JavadocConsecutiveEmptyLines, JavadocEmptyFirstLine, JavadocEmptyLastLine, LineLength, MethodCount, MethodParameterTypeRequired, MethodReturnTypeRequired, NoDef, ParameterName, UnnecessaryGString, UnnecessaryGetter, UnnecessarySetter, VariableTypeRequired */
 /**
  *
  *  File: adc-manager.groovy
@@ -654,10 +654,7 @@ private removeChildDevices() {
 #
 ******************************************************************************/
 private unHtmlValue(valueToDecode) {
-    valueToDecode = valueToDecode.replace(/&lt;/, "<")
-    valueToDecode = valueToDecode.replace(/&gt;/, ">")
-
-    return valueToDecode
+    return valueToDecode.replaceAll("&lt;", "<").replaceAll("&gt;", ">")
 }
 
 /******************************************************************************
