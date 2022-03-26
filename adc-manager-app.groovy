@@ -1,4 +1,4 @@
-/* groovylint-disable LineLength, MethodCount */
+/* groovylint-disable FactoryMethodName, JavadocConsecutiveEmptyLines, JavadocEmptyFirstLine, JavadocEmptyLastLine, LineLength, MethodCount, ParameterName */
 /**
  *
  *  File: adc-manager.groovy
@@ -48,7 +48,7 @@
  */
 
 String appVersion() { return "1.1.2" }
-String appModified() { return "2020-05-31"}
+String appModified() { return "2020-05-31" }
 String appAuthor() { return "Jeff Pierce" }
 
  definition(
@@ -62,22 +62,20 @@ String appAuthor() { return "Jeff Pierce" }
     singleInstance: true
 ) 
 
-
 preferences {
 	page(name: "mainPage", title: "Alarm.com Manager Setup", install: true, uninstall: true)
 }
-
 
 def installed() {
 	passwordEncryption()
 
 	debug("Installed with settings: ${settings}", "installed()")
 
-	if(sanityCheck()) {
+	if (sanityCheck()) {
 		// app installed, acquire panelID
 		getPanelID()
 
-		if(!state.afg || !state.sessionID) {
+		if (!state.afg || !state.sessionID) {
 			logError("Authentication failed -- Unable to finish install!", "installed()")
 			return
 		}
@@ -89,14 +87,12 @@ def installed() {
 	}
 }
 
-
 def uninstalled() {
 	debug("Uninstalling with settings: ${settings}", "uninstalled()")
 	unschedule()
 
 	removeChildDevices()
 }
-
 
 def updated() {
 	unsubscribe()
@@ -107,11 +103,11 @@ def updated() {
 
 	debug("Updated with settings: ${settings}", "updated()")
 
-	if(sanityCheck()) {
+	if (sanityCheck()) {
 		// app updated, re-acquire panelID
 		getPanelID()
 
-		if(!state.afg || !state.sessionID) {
+		if (!state.afg || !state.sessionID) {
 			logError("Authentication failed -- Unable to finish update!", "updated()")
 			return
 		}
@@ -123,7 +119,6 @@ def updated() {
 	}
 }
 
-
 def initialize() {
 	debug("Initializing Alarm.com Manager", "initialize()")
 
@@ -134,25 +129,25 @@ def initialize() {
 	state.subscribe = false
 
 	// setup the system to poll ADC web services for updates
-	if("${pollEvery}" == "1 Minute") {
+	if ("${pollEvery}" == "1 Minute") {
 		debug("Panel polling set for every 1 minute", "initialize()")
 		runEvery1Minute(pollSystemStatus)
-	} else if("${pollEvery}" == "5 Minutes") {
+	} else if ("${pollEvery}" == "5 Minutes") {
 		debug("Panel polling set for every 5 minutes", "initialize()")
 		runEvery5Minutes(pollSystemStatus)
-	} else if("${pollEvery}" == "10 Minutes") {
+	} else if ("${pollEvery}" == "10 Minutes") {
 		debug("Panel polling set for every 10 minutes", "initialize()")
 		runEvery10Minutes(pollSystemStatus)
-	} else if("${pollEvery}" == "15 Minutes") {
+	} else if ("${pollEvery}" == "15 Minutes") {
 		debug("Panel polling set for every 15 minutes", "initialize()")
 		runEvery15Minutes(pollSystemStatus)
-	} else if("${pollEvery}" == "30 Minutes") {
+	} else if ("${pollEvery}" == "30 Minutes") {
 		debug("Panel polling set for every 30 minutes", "initialize()")
 		runEvery30Minutes(pollSystemStatus)
-	} else if("${pollEvery}" == "60 Minutes") {
+	} else if ("${pollEvery}" == "60 Minutes") {
 		debug("Panel polling set for every 60 minutes", "initialize()")
 		runEvery1Hour(pollSystemStatus)
-	} else if("${pollEvery}" == "3 Hours") {
+	} else if ("${pollEvery}" == "3 Hours") {
 		debug("Panel polling set for every 3 hours", "initialize()")
 		runEvery3Hours(pollSystemStatus)
 	} else {
@@ -163,7 +158,6 @@ def initialize() {
 	// immediately get an updated status
 	getSystemStatus()
 }
-
 
 def mainPage() {
     dynamicPage(name: "main", title: "Alarm.com Setup", uninstall: true, install: true) {
@@ -191,7 +185,6 @@ def mainPage() {
 	}
 }
 
-
 /******************************************************************************
 # Purpose: Wrapper for getSystemStatus
 # 
@@ -201,7 +194,6 @@ def mainPage() {
 def pollSystemStatus() {
 	return getSystemStatus();
 }
-
 
 /******************************************************************************
 # Purpose: Handles the calls to the alarm.com API to set the panel state
@@ -216,22 +208,22 @@ def switchStateUpdated(switchType, switchState) {
 	updateSwitch(switchType, switchState)
 
 	// determine what actions should be taken based on disarm/arm stay/arm away
-	if(switchType == "disarm") {
+	if (switchType == "disarm") {
 		// disarm was set to "on"
-		if(switchState == "on") {
+		if (switchState == "on") {
 			// disarm the panel, set all other ADC switches to "off"
 			setSystemStatus(switchType)
 			toggleOtherSwitchesTo(switchType, "off")
 		} else {
 			// disarm was set to "off"
 			// determine how we will treat "turning disarm off"
-			if(settings.disarmOff == "Arm Stay") {
+			if (settings.disarmOff == "Arm Stay") {
 				// disarmOff preference set to arm stay
 				// set panel for arm stay
 				def device = getChildDevice("${state.panelID}-armstay")
 				device.on()
 				debug("Default disarmOff behavior set to arm stay", "switchStateUpdated()")
-			} else if(settings.disarmOff == "Arm Away") {
+			} else if (settings.disarmOff == "Arm Away") {
 				// disarmOff preference set to arm away
 				// set panel for arm away
 				def device = getChildDevice("${state.panelID}-armaway")
@@ -245,8 +237,8 @@ def switchStateUpdated(switchType, switchState) {
 				updateSwitch(switchType, "on")
 			}
 		}
-	} else if(switchType == "armstay" || switchType == "armaway") {
-		if(switchState == "on") {
+	} else if (switchType == "armstay" || switchType == "armaway") {
+		if (switchState == "on") {
 			setSystemStatus(switchType)
 			toggleOtherSwitchesTo(switchType, "off")
 		} else {
@@ -255,7 +247,6 @@ def switchStateUpdated(switchType, switchState) {
 		}
 	}
 }
-
 
 /******************************************************************************
 # Purpose: Return boolean value indicated if debug mode is activated
@@ -283,7 +274,6 @@ private getLabelMap() {
 	]
 }
 
-
 /******************************************************************************
 # Purpose: Return the core switch types
 # 
@@ -294,7 +284,6 @@ private getSwitchTypes() {
 	return ['disarm', 'armstay', 'armaway']
 }
 
-
 /******************************************************************************
 # Purpose: Handle the password encryption user preference
 # 
@@ -304,7 +293,7 @@ private getSwitchTypes() {
 # clear out any residual encryption values from settings.
 ******************************************************************************/
 private passwordEncryption() {
-	if(settings.password && settings.encryptPassword) {
+	if (settings.password && settings.encryptPassword) {
 		app.updateSetting("encryptedPassword", [value: encrypt(settings.password), type: "string"])
 		settings.encryptedPassword = encrypt(settings.password)
 
@@ -313,14 +302,13 @@ private passwordEncryption() {
 		settings.password = ""
 
 		debug("Password encryption requested, and successfully completed")
-	} else if(settings.password) { // password not encrypted, clear any residual encryption values
+	} else if (settings.password) { // password not encrypted, clear any residual encryption values
 		app.updateSetting("encryptedPassword", [value: "", type: "string"])
 		settings.encryptedPassword = ""
 
 		debug("Password encryption not requested, stored as plain text")
 	}
 }
-
 
 /******************************************************************************
 # Purpose: Perform checks to ensure application is ready to start
@@ -329,17 +317,16 @@ private passwordEncryption() {
 # Return true if ready, false if problems and log message to system logs
 ******************************************************************************/
 private sanityCheck() {
-	if(settings.encryptPassword && !settings.encryptedPassword) {
+	if (settings.encryptPassword && !settings.encryptedPassword) {
 		log.error("ADC FATAL ERROR: No encrypted password has been specified; Please enter a password in the application preferences screen.")
 		return false
-	} else if(!settings.password && !settings.encryptPassword) {
+	} else if (!settings.password && !settings.encryptPassword) {
 		log.error("ADC FATAL ERROR: No password has been specified; Please enter a password in the application preferences screen.")
 		return false
 	} else {
 		return true;
 	}
 }
-
 
 /******************************************************************************
 # Purpose: Update a switch's state from within this app
@@ -353,7 +340,6 @@ private updateSwitch(switchType, switchState) {
 	device.sendEvent([name: "switch", value: switchState])
 }
 
-
 /******************************************************************************
 # Purpose: Toggle switches other than the specified type to another value
 # 
@@ -365,7 +351,7 @@ private toggleOtherSwitchesTo(switchTypeExclude, switchState) {
 
 	getSwitchTypes().each{switchType ->
 		// ignore the switch type being excluded
-		if(switchType == switchTypeExclude) {
+		if (switchType == switchTypeExclude) {
 			return;
 		}
 
@@ -388,7 +374,7 @@ private getSystemAuthID() {
 	// Determine if password has been encrypted locally
 	def settingsPassword = ""
 	
-	if(settings.encryptPassword) {
+	if (settings.encryptPassword) {
 		settingsPassword = URLEncoder.encode(unHtmlValue(decrypt(settings.encryptedPassword)))
 	} else {
 		settingsPassword = URLEncoder.encode(unHtmlValue(password))
@@ -418,9 +404,9 @@ private getSystemAuthID() {
 			resp.getHeaders('Set-Cookie').each { cookie ->
 				def cookieObj = getCookie(cookie.toString())
 
-				if(cookieObj.key == "afg") {
+				if (cookieObj.key == "afg") {
 					afg = cookieObj.value
-				} else if(cookieObj.key == "ASP.NET_SessionId") {
+				} else if (cookieObj.key == "ASP.NET_SessionId") {
 					sessionID = cookieObj.value
 				}
 			}
@@ -435,7 +421,6 @@ private getSystemAuthID() {
 		logError("Authentication Error: Username or password not accepted; Please update these values in the ADC settings", "getSystemAuthID()")
 	}
 }
-
 
 /******************************************************************************
 # Purpose: Get alarm.com panel identification value
@@ -489,7 +474,6 @@ private getPanelID() {
 	}
 }
 
-
 /******************************************************************************
 # Purpose: Get the current status of the alarm system
 # 
@@ -501,7 +485,7 @@ private getSystemStatus() {
 	getSystemAuthID()
 
 	// ensure we have a valid panelID
-	if(!state.panelID) {
+	if (!state.panelID) {
 		getPanelID()
 	}
 
@@ -516,11 +500,11 @@ private getSystemStatus() {
 			def current_status = json.data.attributes.state
 			def status_key = null
 
-			if("${current_status}" == "1") {
+			if ("${current_status}" == "1") {
 				status_key = "disarm"
-			} else if("${current_status}" == "2") {
+			} else if ("${current_status}" == "2") {
 				status_key = "armstay"
-			} else if("${current_status}" == "3") {
+			} else if ("${current_status}" == "3") {
 				status_key = "armaway"
 			}
 
@@ -531,7 +515,6 @@ private getSystemStatus() {
 		logError("getSystemStatus", e)
 	}
 }
-
 
 /******************************************************************************
 # Purpose: Set the panel to a specified status (disarm, arm stay, arm away)
@@ -548,11 +531,11 @@ private setSystemStatus(status_key) {
 	def adc_command = null;
 	def post_data = '{"statePollOnly":false}'
 
-	if(status_key == "disarm") {
+	if (status_key == "disarm") {
 		adc_command = "disarm"
-	} else if(status_key == "armstay") {
+	} else if (status_key == "armstay") {
 		adc_command = "armStay"
-	} else if(status_key == "armaway") {
+	} else if (status_key == "armaway") {
 		adc_command = "armAway"
 	}
 
@@ -572,7 +555,6 @@ private setSystemStatus(status_key) {
 	}
 }
 
-
 /******************************************************************************
 # Purpose: Determine if the panel status has been updated, set switches
 # 
@@ -580,7 +562,7 @@ private setSystemStatus(status_key) {
 # this app (e.g. from the panel or another app)
 ******************************************************************************/
 private updateHubStatus(switchType) {
-	if(state.currentStatus != switchType) {
+	if (state.currentStatus != switchType) {
 		debug("System status updated to: ${switchType}", "updateHubStatus()")
 
 		updateSwitch(switchType, "on")
@@ -588,7 +570,6 @@ private updateHubStatus(switchType) {
 		state.currentStatus = switchType
 	}
 }
-
 
 /******************************************************************************
 # Purpose: Create child devices; One for each: disarm, armstay, armaway
@@ -600,13 +581,12 @@ private createChildDevices() {
 	getSwitchTypes().each{switchType ->
 		def existingDevice = getChildDevice("${state.panelID}-${switchType}")
 
-		if(!existingDevice) {
+		if (!existingDevice) {
 			debug("Creating child device: ${state.panelID}-${switchType}", "createChildDevices()")
 			createChildDevice(switchType)
 		}
 	}
 }
-
 
 /******************************************************************************
 # Purpose: Create the child device as specified
@@ -630,7 +610,6 @@ private createChildDevice(deviceType) {
 	}
 }
 
-
 /******************************************************************************
 # Purpose: Create child devices that do not exist
 # 
@@ -643,13 +622,12 @@ private updateChildDevices() {
 	switchTypes.each {switchType ->
 		def device = getChildDevice("${state.panelID}-${switchType}")
 
-		if(!device) {
+		if (!device) {
 			debug("ADC device does not exist, creating: ${state.panelID}-${switchType}", "updateChildDevices()")
 			createChildDevice(switchType)
 		}
 	}
 }
-
 
 /******************************************************************************
 # Purpose: Delete all child devices
@@ -670,7 +648,6 @@ private removeChildDevices() {
 	}
 }
 
-
 /******************************************************************************
 # Purpose: Restore any escaped HTML values stored in state memory
 # 
@@ -683,7 +660,6 @@ private unHtmlValue(valueToDecode) {
 
 	return valueToDecode
 }
-
 
 /******************************************************************************
 # Purpose: Parse a cookie out of a Set-Cookie HTTP header
@@ -706,7 +682,6 @@ private getCookie(cookie) {
 	}
 }
 
-
 /******************************************************************************
 # Purpose: Define the standard alarm.com headers expected for API calls
 # 
@@ -723,13 +698,12 @@ private getStandardHeaders(options = []) {
         "Host" : "www.alarm.com"
 	]
 
-	if(state.sessionID) {
+	if (state.sessionID) {
 		headers['Cookie'] = getCookieString()
 	}
 
 	return headers
 }
-
 
 /******************************************************************************
 # Purpose: Define the necessary cookie string for standard alarm.com API calls
@@ -741,7 +715,6 @@ private getCookieString() {
 	return "ASP.NET_SessionId=${state.sessionID}; CookieTest=1; IsFromNewSite=1; afg=${state.afg};"
 }
 
-
 /******************************************************************************
 # Purpose: Log a debug message
 # 
@@ -749,17 +722,16 @@ private getCookieString() {
 # 
 ******************************************************************************/
 private debug(logMessage, fromMethod="") {
-	if(debugMode) {
+	if (debugMode) {
 		def fMethod = ""
 
-		if(fromMethod) {
+		if (fromMethod) {
 			fMethod = ".${fromMethod}"
 		}
 
 		log.debug("ADC-App${fMethod}: ${logMessage}")
 	}
 }
-
 
 /******************************************************************************
 # Purpose: Log an error
