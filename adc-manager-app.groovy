@@ -1,3 +1,4 @@
+/* groovylint-disable MethodCount */
 /**
  *
  *  File: adc-manager.groovy
@@ -348,7 +349,6 @@ private sanityCheck() {
 ******************************************************************************/
 private updateSwitch(switchType, switchState) {
 	def device = getChildDevice("${state.panelID}-${switchType}")
-	def currentState = device.getCurrentSwitchState()
 	debug("Setting ${state.panelID}-${switchType} to ${switchState}", "updateSwitch()")
 	device.sendEvent([name: "switch", value: switchState])
 }
