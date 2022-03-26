@@ -23,6 +23,7 @@
  * App State Variables:
  * username: (email of user)
  * password: (password of user)
+ * twoFactorAuthenticationId: (twoFactorAuthenticationId from Alarm.com cookie)
  * panelID: 1234569-123 (panel ID, determined at app install/update)
  * currentStatus: disarm|armstay|armaway
  * afg: YPkyO88gkyVQyPphpBOojw==  (ajaxrequestuniquekey; used for authentication, refreshed every call)
@@ -41,6 +42,7 @@
  *    2020-05-26  Jeff Pierce  Added password encryption, fixed unschedule() issue, cleaned up code more
  *    2020-05-27  Jeff Pierce  Fixed a bug that created switches even with a bad auth attempt
  *    2020-05-31  Jeff Pierce  Added additional polling options, fixed default value in polling bug
+ *    2022-03-23  John Russell Fixed: Issue #1 Two-Factor Authentication Problem
  *
  */
 
