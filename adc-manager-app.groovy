@@ -586,8 +586,6 @@ private updateHubStatus(switchType) {
 		updateSwitch(switchType, "on")
 		toggleOtherSwitchesTo(switchType, "off")
 		state.currentStatus = switchType
-	} else {
-		//log.debug("No update to system status: ${switchType}")
 	}
 }
 
