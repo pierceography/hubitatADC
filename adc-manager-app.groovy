@@ -1,4 +1,3 @@
-/* groovylint-disable CompileStatic, CouldBeSwitchStatement, DuplicateNumberLiteral, DuplicateStringLiteral, FactoryMethodName, JavadocConsecutiveEmptyLines, JavadocEmptyFirstLine, JavadocEmptyLastLine, LineLength, MethodCount, MethodParameterTypeRequired, MethodReturnTypeRequired, NoDef, ParameterName, UnnecessaryGString, UnnecessaryGetter, UnnecessarySetter, VariableTypeRequired */
 /**
  *
  *  File: adc-manager.groovy
@@ -44,6 +43,7 @@
  *    2020-05-27  Jeff Pierce  Fixed a bug that created switches even with a bad auth attempt
  *    2020-05-31  Jeff Pierce  Added additional polling options, fixed default value in polling bug
  *    2022-03-23  John Russell Fixed: Issue #1 Two-Factor Authentication Problem
+ *    2022-03-26  John Russell Lint and comment cleanup
  *
  */
 
