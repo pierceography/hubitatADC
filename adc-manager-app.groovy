@@ -1,4 +1,4 @@
-/* groovylint-disable FactoryMethodName, JavadocConsecutiveEmptyLines, JavadocEmptyFirstLine, JavadocEmptyLastLine, LineLength, MethodCount, ParameterName */
+/* groovylint-disable CompileStatic, FactoryMethodName, JavadocConsecutiveEmptyLines, JavadocEmptyFirstLine, JavadocEmptyLastLine, LineLength, MethodCount, ParameterName */
 /**
  *
  *  File: adc-manager.groovy
@@ -60,7 +60,7 @@ String appAuthor() { return "Jeff Pierce" }
     iconUrl: "https://images-na.ssl-images-amazon.com/images/I/71yQ11GAAiL.png",
     iconX2Url: "https://images-na.ssl-images-amazon.com/images/I/71yQ11GAAiL.png",
     singleInstance: true
-) 
+)
 
 preferences {
 	page(name: "mainPage", title: "Alarm.com Manager Setup", install: true, uninstall: true)
@@ -187,9 +187,9 @@ def mainPage() {
 
 /******************************************************************************
 # Purpose: Wrapper for getSystemStatus
-# 
-# Details: 
-# 
+#
+# Details:
+#
 ******************************************************************************/
 def pollSystemStatus() {
 	return getSystemStatus();
@@ -197,9 +197,9 @@ def pollSystemStatus() {
 
 /******************************************************************************
 # Purpose: Handles the calls to the alarm.com API to set the panel state
-# 
+#
 # Details: This method will be called from the device driver
-# 
+#
 ******************************************************************************/
 def switchStateUpdated(switchType, switchState) {
 	debug("Setting ${switchType} to ${switchState}", "switchStateUpdated()")
@@ -250,9 +250,9 @@ def switchStateUpdated(switchType, switchState) {
 
 /******************************************************************************
 # Purpose: Return boolean value indicated if debug mode is activated
-# 
-# Details: 
-# 
+#
+# Details:
+#
 ******************************************************************************/
 def getDebugMode() {
 	return debugMode
@@ -262,9 +262,9 @@ def getDebugMode() {
 
 /******************************************************************************
 # Purpose: Map keys to human friendly values
-# 
-# Details: 
-# 
+#
+# Details:
+#
 ******************************************************************************/
 private getLabelMap() {
 	return [
@@ -276,9 +276,9 @@ private getLabelMap() {
 
 /******************************************************************************
 # Purpose: Return the core switch types
-# 
+#
 # Details: Pretty simple: disarm, arm stay, arm away
-# 
+#
 ******************************************************************************/
 private getSwitchTypes() {
 	return ['disarm', 'armstay', 'armaway']
@@ -286,7 +286,7 @@ private getSwitchTypes() {
 
 /******************************************************************************
 # Purpose: Handle the password encryption user preference
-# 
+#
 # Details: If password encryption is enabled, check to see if a password has
 # been provided.  If so, encrypt it and store as a non-user input setting,
 # then clear out the user provided password.  If no encryption requested,
@@ -312,7 +312,7 @@ private passwordEncryption() {
 
 /******************************************************************************
 # Purpose: Perform checks to ensure application is ready to start
-# 
+#
 # Details: Check to ensure a password has been provided
 # Return true if ready, false if problems and log message to system logs
 ******************************************************************************/
@@ -330,7 +330,7 @@ private sanityCheck() {
 
 /******************************************************************************
 # Purpose: Update a switch's state from within this app
-# 
+#
 # Details: To be used from within this app; To update switch states within
 # the driver, use switchStateUpdated()
 ******************************************************************************/
@@ -342,9 +342,9 @@ private updateSwitch(switchType, switchState) {
 
 /******************************************************************************
 # Purpose: Toggle switches other than the specified type to another value
-# 
+#
 # Details: Almost always used to toggle other switches to off
-# 
+#
 ******************************************************************************/
 private toggleOtherSwitchesTo(switchTypeExclude, switchState) {
 	debug("Toggling all switches that are not ${switchTypeExclude} to ${switchState}", "toggleOtherSwitchesTo()")
@@ -361,7 +361,7 @@ private toggleOtherSwitchesTo(switchTypeExclude, switchState) {
 
 /******************************************************************************
 # Purpose: Get the authentication values used for API calls
-# 
+#
 # Details: Two values of note are returned after a successful login
 # afg/ajaxrequestuniquekey (returned as a cookie and header)
 # ASP.NET_SessionId (returned as a cookie)
@@ -373,7 +373,7 @@ private getSystemAuthID() {
 	// values, so we need to revert them to their originals (unHtmlValue)
 	// Determine if password has been encrypted locally
 	def settingsPassword = ""
-	
+
 	if (settings.encryptPassword) {
 		settingsPassword = URLEncoder.encode(unHtmlValue(decrypt(settings.encryptedPassword)))
 	} else {
@@ -381,7 +381,7 @@ private getSystemAuthID() {
 	}
 
 	def loginString = "IsFromNewSite=1&txtUserName=${username}&txtPassword=${settingsPassword}"
-	
+
 	def params = [
 		uri: "https://www.alarm.com/web/Default.aspx",
 		body: loginString,
@@ -395,7 +395,7 @@ private getSystemAuthID() {
 	]
 
 	try {
-		httpPost(params) { resp -> 
+		httpPost(params) { resp ->
 			def afg = null;
 			def sessionID = null;
 
@@ -424,7 +424,7 @@ private getSystemAuthID() {
 
 /******************************************************************************
 # Purpose: Get alarm.com panel identification value
-# 
+#
 # Details: The partition ID (or panel ID) is needed for all API calls
 # The account ID must first be fetched, then used to fetch the partition ID
 ******************************************************************************/
@@ -476,7 +476,7 @@ private getPanelID() {
 
 /******************************************************************************
 # Purpose: Get the current status of the alarm system
-# 
+#
 # Details: Determine whether the system is disarmed, armed stay, or armed away
 #
 ******************************************************************************/
@@ -518,7 +518,7 @@ private getSystemStatus() {
 
 /******************************************************************************
 # Purpose: Set the panel to a specified status (disarm, arm stay, arm away)
-# 
+#
 # Details: status_key will be either: disarm, armaway, armstay
 # (currently does not allow for delayed arming)
 ******************************************************************************/
@@ -544,9 +544,9 @@ private setSystemStatus(status_key) {
 		headers : getStandardHeaders(),
 		body : post_data
 	]
-	
+
 	try {
-		httpPost(params) { resp -> 
+		httpPost(params) { resp ->
 			debug("Alarm.com accepted status of: ${status_key}", "setSystemStatus()")
 			settings.currentStatus = status_key
 		}
@@ -557,7 +557,7 @@ private setSystemStatus(status_key) {
 
 /******************************************************************************
 # Purpose: Determine if the panel status has been updated, set switches
-# 
+#
 # Details: This is generally used if the panel has been updated outside of
 # this app (e.g. from the panel or another app)
 ******************************************************************************/
@@ -573,7 +573,7 @@ private updateHubStatus(switchType) {
 
 /******************************************************************************
 # Purpose: Create child devices; One for each: disarm, armstay, armaway
-# 
+#
 # Details: This will usually be done when the ADC app has been newly installed
 # or updated; If a child device already exists, it will be ignored
 ******************************************************************************/
@@ -590,7 +590,7 @@ private createChildDevices() {
 
 /******************************************************************************
 # Purpose: Create the child device as specified
-# 
+#
 # Details: Use the panel ID and switch type (disarm, armstay, armaway) as the
 # device identification value
 ******************************************************************************/
@@ -612,9 +612,9 @@ private createChildDevice(deviceType) {
 
 /******************************************************************************
 # Purpose: Create child devices that do not exist
-# 
+#
 # Details: Usually done during an app update (restores any deleted devices)
-# 
+#
 ******************************************************************************/
 private updateChildDevices() {
 	def switchTypes = getSwitchTypes()
@@ -631,9 +631,9 @@ private updateChildDevices() {
 
 /******************************************************************************
 # Purpose: Delete all child devices
-# 
-# Details: 
-# 
+#
+# Details:
+#
 ******************************************************************************/
 private removeChildDevices() {
 	def switchTypes = getSwitchTypes()
@@ -650,9 +650,9 @@ private removeChildDevices() {
 
 /******************************************************************************
 # Purpose: Restore any escaped HTML values stored in state memory
-# 
+#
 # Details: Ex: &lt; = <
-# 
+#
 ******************************************************************************/
 private unHtmlValue(valueToDecode) {
 	valueToDecode = valueToDecode.replace(/&lt;/, "<")
@@ -663,9 +663,9 @@ private unHtmlValue(valueToDecode) {
 
 /******************************************************************************
 # Purpose: Parse a cookie out of a Set-Cookie HTTP header
-# 
+#
 # Details: Return a map of a key and value
-# 
+#
 ******************************************************************************/
 private getCookie(cookie) {
 	cookie = cookie.replace("Set-Cookie: ", '')
@@ -684,9 +684,9 @@ private getCookie(cookie) {
 
 /******************************************************************************
 # Purpose: Define the standard alarm.com headers expected for API calls
-# 
-# Details: 
-# 
+#
+# Details:
+#
 ******************************************************************************/
 private getStandardHeaders(options = []) {
 	def headers = [
@@ -707,9 +707,9 @@ private getStandardHeaders(options = []) {
 
 /******************************************************************************
 # Purpose: Define the necessary cookie string for standard alarm.com API calls
-# 
+#
 # Details: This is the minimum cookie definition string needed
-# 
+#
 ******************************************************************************/
 private getCookieString() {
 	return "ASP.NET_SessionId=${state.sessionID}; CookieTest=1; IsFromNewSite=1; afg=${state.afg};"
@@ -717,9 +717,9 @@ private getCookieString() {
 
 /******************************************************************************
 # Purpose: Log a debug message
-# 
-# Details: 
-# 
+#
+# Details:
+#
 ******************************************************************************/
 private debug(logMessage, fromMethod="") {
 	if (debugMode) {
@@ -735,9 +735,9 @@ private debug(logMessage, fromMethod="") {
 
 /******************************************************************************
 # Purpose: Log an error
-# 
-# Details: 
-# 
+#
+# Details:
+#
 ******************************************************************************/
 private logError(fromMethod, e) {
 	log.error("ADC ERROR (${fromMethod}): ${e}")
