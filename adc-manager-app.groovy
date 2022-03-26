@@ -416,7 +416,7 @@ private getSystemAuthID() {
             state.sessionID = sessionID
             state.afg = afg
         }
-    } catch(e) {
+    } catch (e) {
         logError("Authentication Error: Username or password not accepted; Please update these values in the ADC settings", "getSystemAuthID()")
     }
 }
@@ -450,7 +450,7 @@ private getPanelID() {
 
             debug("Received accountID (${accountID})", "getPanelID()")
         }
-    } catch(e) {
+    } catch (e) {
         logError("getPanelID:GettingAccountID", e)
     }
 
@@ -468,7 +468,7 @@ private getPanelID() {
 
             debug("Received panelID (${state.panelID})", "getPanelID()")
         }
-    } catch(e) {
+    } catch (e) {
         logError("getPanelID:GettingPanelID", e)
     }
 }
@@ -510,7 +510,7 @@ private getSystemStatus() {
             debug("Alarm.com returned a panel status of: ${current_status} - ${status_key}", "getSystemStatus()")
             updateHubStatus(status_key)
         }
-    } catch(e) {
+    } catch (e) {
         logError("getSystemStatus", e)
     }
 }
@@ -549,7 +549,7 @@ private setSystemStatus(status_key) {
             debug("Alarm.com accepted status of: ${status_key}", "setSystemStatus()")
             settings.currentStatus = status_key
         }
-    } catch(e) {
+    } catch (e) {
         logError("setSystemStatus", e)
     }
 }
@@ -604,7 +604,7 @@ private createChildDevice(deviceType) {
         createdDevice.setActionType(deviceType)
 
         debug("Child device ${state.panelID}-${deviceType} created", "createChildDevice()")
-    } catch(e) {
+    } catch (e) {
         logError("Failed to add child device with error: ${e}", "createChildDevice()")
     }
 }
@@ -642,7 +642,7 @@ private removeChildDevices() {
             debug("Removing child device: ${state.panelID}-${switchType}", "removeChildDevices()")
             deleteChildDevice("${state.panelID}-${switchType}")
         }
-    } catch(e) {
+    } catch (e) {
         logError("removeChildDevices", e)
     }
 }
@@ -676,7 +676,7 @@ private getCookie(cookie) {
             key : kv[0],
             value : kv[1]
         ]
-    } catch(e) {
+    } catch (e) {
         return []
     }
 }
