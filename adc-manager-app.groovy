@@ -348,7 +348,7 @@ private updateSwitch(switchType, switchState) {
 private toggleOtherSwitchesTo(switchTypeExclude, switchState) {
     debug("Toggling all switches that are not ${switchTypeExclude} to ${switchState}", "toggleOtherSwitchesTo()")
 
-    getSwitchTypes().each{switchType ->
+    getSwitchTypes().each { switchType ->
         // ignore the switch type being excluded
         if (switchType == switchTypeExclude) {
             return
@@ -577,7 +577,7 @@ private updateHubStatus(switchType) {
 # or updated; If a child device already exists, it will be ignored
 ******************************************************************************/
 private createChildDevices() {
-    getSwitchTypes().each{switchType ->
+    getSwitchTypes().each { switchType ->
         def existingDevice = getChildDevice("${state.panelID}-${switchType}")
 
         if (!existingDevice) {
@@ -618,7 +618,7 @@ private createChildDevice(deviceType) {
 private updateChildDevices() {
     def switchTypes = getSwitchTypes()
 
-    switchTypes.each {switchType ->
+    switchTypes.each { switchType ->
         def device = getChildDevice("${state.panelID}-${switchType}")
 
         if (!device) {
@@ -638,7 +638,7 @@ private removeChildDevices() {
     def switchTypes = getSwitchTypes()
 
     try {
-        switchTypes.each {switchType ->
+        switchTypes.each { switchType ->
             debug("Removing child device: ${state.panelID}-${switchType}", "removeChildDevices()")
             deleteChildDevice("${state.panelID}-${switchType}")
         }
