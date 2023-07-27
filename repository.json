@@ -1,0 +1,12 @@
+{
+  "author": "J M Pierce",
+  "gitHubUrl": "https://github.com/pierceography",
+  "packages": [
+		{
+			"name": "Hubitat Alarm.com Panel",
+			"category": "Integrations",
+			"location": "https://raw.githubusercontent.com/schwark/hubitatADC/packageManifest.json",
+			"description": "Alarm.com Panel implementation for Hubitat"
+		}
+	]
+}

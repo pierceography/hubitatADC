@@ -1,0 +1,27 @@
+{
+  "packageName": "Hubitat Alarm.com Panel",
+  "author": "J M Pierce",
+  "version": "1.1.2",
+  "minimumHEVersion": "2.1.9",
+  "dateReleased": "2022-03-26",
+  "apps": [
+    {
+      "id": "a4b74c05-84ec-481e-8e4f-14b7016d2e7f",
+      "name": "Alarm.com Manager",
+      "namespace": "jmpierce",
+      "location": "https://raw.githubusercontent.com/pierceography/hubitatADC/master/adc-manager-app.groovy",
+      "required": true,
+      "oauth": false,
+      "primary": false
+    }
+  ],
+  "drivers": [
+    {
+      "id": "0604ee5d-50e8-4441-ad78-6c8c9fdb0cc1",
+      "name": "Alarm.com Panel Switch",
+      "namespace": "jmpierce",
+      "location": "https://raw.githubusercontent.com/pierceography/hubitatADC/master/adc-driver.groovy",
+      "required": true
+    }
+  ]
+}
