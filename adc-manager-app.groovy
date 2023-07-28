@@ -177,6 +177,15 @@ def mainPage() {
             input "disarmOff", "enum", title: "How should switching disarm to off behave?", options: ["Do Nothing", "Arm Stay", "Arm Away"], defaultValue: "Do Nothing", required: true
         }
         section {
+            input "bypass", "bool", title: "Force Bypass", description: "Force bypass of open sensors when arming", defaultValue: false
+        }
+        section {
+            input "silent", "bool", title: "Silent Arming", description: "Arm Silently without multiple beeps", defaultValue: true
+        }
+        section {
+            input "nodelay", "bool", title: "No Entry Delay", description: "Arm with no entry delay when door is opened when armed", defaultValue: false
+        }
+        section {
             input "encryptPassword", "bool", title: "Encrypt Password", description: "The password will be encrypted when stored on the hub", defaultValue: true
         }
         section {
@@ -554,7 +563,7 @@ private setSystemStatus(status_key) {
     debug("Attempting to set a panel status of: ${status_key} with panelID ${state.panelID}", "setSystemStatus()")
 
     def adc_command = null
-    def post_data = '{"statePollOnly":false}'
+    def post_data = '{"forceBypass":'+bypass+',"noEntryDelay":'+nodelay+',"silentArming":'+silent+',"statePollOnly":false}'
 
     if (status_key == "disarm") {
         adc_command = "disarm"
@@ -564,6 +573,7 @@ private setSystemStatus(status_key) {
         adc_command = "armAway"
     }
 
+    debug(post_data)
     params = [
         uri : "https://www.alarm.com/web/api/devices/partitions/${state.panelID}/${adc_command}",
         headers : getStandardHeaders(),
