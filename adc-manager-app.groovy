@@ -577,6 +577,7 @@ private setSystemStatus(status_key) {
     params = [
         uri : "https://www.alarm.com/web/api/devices/partitions/${state.panelID}/${adc_command}",
         headers : getStandardHeaders(),
+        requestContentType: "application/json",
         body : post_data
     ]
 
