@@ -177,6 +177,15 @@ def mainPage() {
             input "disarmOff", "enum", title: "How should switching disarm to off behave?", options: ["Do Nothing", "Arm Stay", "Arm Away"], defaultValue: "Do Nothing", required: true
         }
         section {
+            input "bypass", "bool", title: "Force Bypass", description: "Force bypass of open sensors when arming", defaultValue: false
+        }
+        section {
+            input "silent", "bool", title: "Silent Arming", description: "Arm Silently without multiple beeps", defaultValue: true
+        }
+        section {
+            input "nodelay", "bool", title: "No Entry Delay", description: "Arm with no entry delay when door is opened when armed", defaultValue: false
+        }
+        section {
             input "encryptPassword", "bool", title: "Encrypt Password", description: "The password will be encrypted when stored on the hub", defaultValue: true
         }
         section {
@@ -358,6 +367,42 @@ private toggleOtherSwitchesTo(switchTypeExclude, switchState) {
     }
 }
 
+private processCookies(resp) {
+    def afg = null
+    def sessionID = null
+    def twofa = twoFactorAuthenticationId
+    def authCustomer = null
+
+    resp.getHeaders('Location').each { location ->
+        debug("Current location is ${location}")
+    }
+
+    // parse through the cookies to find the two authentication
+    // values we need, store in state memory
+    resp.getHeaders('Set-Cookie').each { cookie ->
+        def cookieObj = getCookie(cookie.toString())
+
+        if (!state.afg && cookieObj.key == "afg") {
+            afg = cookieObj.value
+            state.afg = afg
+        } else if (!state.sessionID && cookieObj.key == "ASP.NET_SessionId") {
+            sessionID = cookieObj.value
+            state.sessionID = sessionID
+        }
+        if(!twofa && cookieObj.key == 'twoFactorAuthenticationId') {
+            twofa = cookieObj.value
+            twoFactorAuthenticationId = twofa
+        }
+        if(!state.authCustomer && cookieObj.key == 'auth_CustomerDotNet') {
+            authCustomer = cookieObj.value
+            state.authCustomer = authCustomer
+            state.lastLogin = (new Date()).getTime()
+        }
+    }
+
+    debug("Received sessionID (${state.sessionID}) and afg (${state.afg}) and twoFactorAuthenticationId (${twoFactorAuthenticationId}) and authCustomer (${authCustomer})", "getSystemAuthID()")
+}
+
 /******************************************************************************
 # Purpose: Get the authentication values used for API calls
 #
@@ -366,6 +411,12 @@ private toggleOtherSwitchesTo(switchTypeExclude, switchState) {
 # ASP.NET_SessionId (returned as a cookie)
 ******************************************************************************/
 private getSystemAuthID() {
+    if(!state.lastLogin) state.lastLogin = 0
+    if(state.authCustomer && (new Date()).getTime() - state.lastLogin < 100000) return;
+    state.authCustomer = null
+    state.afg = null
+    state.sessionID = null
+
     debug("Getting refreshed authentication credentials", "getSystemAuthID()")
 
     // Hubitat likes to escape certain characters when transporting their form
@@ -379,42 +430,26 @@ private getSystemAuthID() {
         settingsPassword = URLEncoder.encode(unHtmlValue(password))
     }
 
+    try {
+        httpGet([uri: "https://www.alarm.com/login.aspx", headers: getStandardHeaders("html")]) { resp ->
+            processCookies(resp)
+        }
+    } catch (e) {
+        logError("Authentication Error: Username or password not accepted; Please update these values in the ADC settings", "getSystemAuthID()")
+    }
+
     def loginString = "IsFromNewSite=1&txtUserName=${username}&txtPassword=${settingsPassword}"
 
     def params = [
         uri: "https://www.alarm.com/web/Default.aspx",
         body: loginString,
         requestContentType: "application/x-www-form-urlencoded",
-        headers : [
-            "Host" : "www.alarm.com",
-            "Content-Type" : "application/x-www-form-urlencoded",
-            "Connection" : "close",
-            "Cookie": "twoFactorAuthenticationId=${twoFactorAuthenticationId}"
-        ]
+        headers : getStandardHeaders("html", ["Cookie": "twoFactorAuthenticationId=${twoFactorAuthenticationId}"])
     ]
 
     try {
         httpPost(params) { resp ->
-            def afg = null
-            def sessionID = null
-
-            // parse through the cookies to find the two authentication
-            // values we need, store in state memory
-            resp.getHeaders('Set-Cookie').each { cookie ->
-                def cookieObj = getCookie(cookie.toString())
-
-                if (cookieObj.key == "afg") {
-                    afg = cookieObj.value
-                } else if (cookieObj.key == "ASP.NET_SessionId") {
-                    sessionID = cookieObj.value
-                }
-            }
-
-            debug("Received sessionID (${sessionID}) and afg (${afg})", "getSystemAuthID()")
-
-            // store the ASP session ID and afg as state values
-            state.sessionID = sessionID
-            state.afg = afg
+            processCookies(resp)
         }
     } catch (e) {
         logError("Authentication Error: Username or password not accepted; Please update these values in the ADC settings", "getSystemAuthID()")
@@ -428,6 +463,8 @@ private getSystemAuthID() {
 # The account ID must first be fetched, then used to fetch the partition ID
 ******************************************************************************/
 private getPanelID() {
+    if(state.panelID) return;
+
     // first we need to refresh our auth values
     getSystemAuthID()
 
@@ -437,16 +474,16 @@ private getPanelID() {
     // this will only be used for fetching the partition ID
     // the partition ID is basically the panel ID
     params = [
-        uri : "https://www.alarm.com/web/api/identities",
-        headers : getStandardHeaders(),
-        requestContentType : "application/json"
+        uri : "https://www.alarm.com/web/api/systems/availableSystemItems",
+        headers : getStandardHeaders()
     ]
 
     try {
         // fetch the account ID
         httpGet(params) { resp ->
             def json = parseJson(resp.data.text)
-            accountID = json.data[0].relationships.accountInformation.data.id
+            debug(json)
+            accountID = json.data[0].id
 
             debug("Received accountID (${accountID})", "getPanelID()")
         }
@@ -456,8 +493,7 @@ private getPanelID() {
 
     params = [
         uri : "https://www.alarm.com/web/api/systems/systems/${accountID}",
-        headers : getStandardHeaders(),
-        requestContentType : "application/json"
+        headers : getStandardHeaders()
     ]
 
     try {
@@ -473,6 +509,12 @@ private getPanelID() {
     }
 }
 
+private ensureAuth() {
+    // first we need to refresh our auth values
+    getSystemAuthID()
+    getPanelID()
+}
+
 /******************************************************************************
 # Purpose: Get the current status of the alarm system
 #
@@ -480,13 +522,7 @@ private getPanelID() {
 #
 ******************************************************************************/
 private getSystemStatus() {
-    // first we need to refresh our auth values
-    getSystemAuthID()
-
-    // ensure we have a valid panelID
-    if (!state.panelID) {
-        getPanelID()
-    }
+    ensureAuth()
 
     params = [
         uri : "https://www.alarm.com/web/api/devices/partitions/${state.panelID}",
@@ -522,13 +558,12 @@ private getSystemStatus() {
 # (currently does not allow for delayed arming)
 ******************************************************************************/
 private setSystemStatus(status_key) {
-    // first we need to refresh our auth values
-    getSystemAuthID()
+    ensureAuth()
 
-    debug("Attempting to set a panel status of: ${status_key}", "setSystemStatus()")
+    debug("Attempting to set a panel status of: ${status_key} with panelID ${state.panelID}", "setSystemStatus()")
 
     def adc_command = null
-    def post_data = '{"statePollOnly":false}'
+    def post_data = '{"forceBypass":'+bypass+',"noEntryDelay":'+nodelay+',"silentArming":'+silent+',"statePollOnly":false}'
 
     if (status_key == "disarm") {
         adc_command = "disarm"
@@ -538,9 +573,11 @@ private setSystemStatus(status_key) {
         adc_command = "armAway"
     }
 
+    debug(post_data)
     params = [
         uri : "https://www.alarm.com/web/api/devices/partitions/${state.panelID}/${adc_command}",
         headers : getStandardHeaders(),
+        requestContentType: "application/json",
         body : post_data
     ]
 
@@ -683,23 +720,27 @@ private getCookie(cookie) {
 # Details:
 #
 ******************************************************************************/
-private getStandardHeaders(options = []) {
+private getStandardHeaders(accept="json", options = []) {
     def headers = [
-        "Accept" : "application/vnd.api+json",
-        "ajaxrequestuniquekey" : state.afg,
         "Connection" : "close",
         "User-Agent" : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:74.0) Gecko/20100101 Firefox/74.0",
         "Host" : "www.alarm.com"
     ]
 
+    if("json" == accept) {
+        headers << ["Accept" : "application/vnd.api+json"]
+    }
+    if (state.afg) {
+        headers << ["ajaxrequestuniquekey" : state.afg]
+    }
     if (!options.isEmpty()) {
         headers << options
     }
-
     if (state.sessionID) {
         headers['Cookie'] = getCookieString()
     }
 
+    debug(headers)
     return headers
 }
 
@@ -710,7 +751,7 @@ private getStandardHeaders(options = []) {
 #
 ******************************************************************************/
 private getCookieString() {
-    return "ASP.NET_SessionId=${state.sessionID}; CookieTest=1; IsFromNewSite=1; afg=${state.afg};"
+    return "ASP.NET_SessionId=${state.sessionID}; CookieTest=1; IsFromNewSite=1; afg=${state.afg}; twoFactorAuthenticationId=${twoFactorAuthenticationId}; auth_CustomerDotNet=${state.authCustomer}"
 }
 
 /******************************************************************************
