@@ -216,6 +216,12 @@ def pollSystemStatus() {
 #
 ******************************************************************************/
 def switchStateUpdated(switchType, switchState) {
+    if (settings.enableControls != true) {
+        log.warn("Alarm control command ignored: control switches are disabled")
+        pollSystemStatus()
+        return
+    }
+
     debug("Setting ${switchType} to ${switchState}", "switchStateUpdated()")
 
     // update the child device
@@ -595,19 +601,36 @@ private setSystemStatus(status_key) {
 }
 
 /******************************************************************************
-# Purpose: Determine if the panel status has been updated, set switches
+# Purpose: Synchronize Hubitat switches with the actual alarm panel status
 #
-# Details: This is generally used if the panel has been updated outside of
-# this app (e.g. from the panel or another app)
+# Details: Reconcile all switch states on every successful poll, correcting
+# any discrepancies even when the panel status has not changed.
+# Only send events when a switch's state differs from the expected state.
 ******************************************************************************/
 private updateHubStatus(switchType) {
+    if (!getSwitchTypes().contains(switchType)) {
+        log.warn("Unknown alarm status: ${switchType}")
+        return
+    }
+
     if (state.currentStatus != switchType) {
         debug("System status updated to: ${switchType}", "updateHubStatus()")
-
-        updateSwitch(switchType, "on")
-        toggleOtherSwitchesTo(switchType, "off")
-        state.currentStatus = switchType
     }
+
+    // Reconcile every switch against the actual panel status
+    getSwitchTypes().each { type ->
+        def device = getChildDevice("${state.panelID}-${type}")
+
+        if (device) {
+            def expectedState = (type == switchType) ? "on" : "off"
+
+            if (device.currentValue("switch") != expectedState) {
+                device.sendEvent(name: "switch", value: expectedState)
+            }
+        }
+    }
+
+    state.currentStatus = switchType
 }
 
 /******************************************************************************
