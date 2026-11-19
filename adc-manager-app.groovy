@@ -191,6 +191,9 @@ def mainPage() {
             input "encryptPassword", "bool", title: "Encrypt Password", description: "The password will be encrypted when stored on the hub", defaultValue: true
         }
         section {
+            input "enableControls", "bool", title: "Enable alarm control switches", description: "Allow Hubitat switches to arm or disarm the alarm panel", defaultValue: false
+        }
+        section {
             input "debugMode", "bool", title: "Enable debugging", defaultValue: false
         }
     }
