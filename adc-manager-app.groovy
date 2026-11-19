@@ -43,7 +43,9 @@
  *    2020-05-27  Jeff Pierce  Fixed a bug that created switches even with a bad auth attempt
  *    2020-05-31  Jeff Pierce  Added additional polling options, fixed default value in polling bug
  *    2022-03-23  John Russell Fixed: Issue #1 Two-Factor Authentication Problem
- *    2022-03-26  John Russell Lint and comment cleanup
+ *    2022-03-26  John Russell  Lint and comment cleanup
+ *    2026-11-19  rjl77        Forked project for continued development
+ *    2026-11-19  rjl77        Removed sensitive authentication logging
  *
  */
 
@@ -69,7 +71,7 @@ preferences {
 def installed() {
     passwordEncryption()
 
-    debug("Installed with settings: ${settings}", "installed()")
+    debug("Installation completed", "installed()")
 
     if (sanityCheck()) {
         // app installed, acquire panelID
@@ -88,7 +90,7 @@ def installed() {
 }
 
 def uninstalled() {
-    debug("Uninstalling with settings: ${settings}", "uninstalled()")
+    debug("Uninstalling ADC Manager", "uninstalled()")
     unschedule()
 
     removeChildDevices()
@@ -101,7 +103,7 @@ def updated() {
     // handle password encryption
     passwordEncryption()
 
-    debug("Updated with settings: ${settings}", "updated()")
+    debug("Configuration updated", "updated()")
 
     if (sanityCheck()) {
         // app updated, re-acquire panelID
@@ -189,7 +191,7 @@ def mainPage() {
             input "encryptPassword", "bool", title: "Encrypt Password", description: "The password will be encrypted when stored on the hub", defaultValue: true
         }
         section {
-            input "debugMode", "bool", title: "Enable debugging", defaultValue: true
+            input "debugMode", "bool", title: "Enable debugging", defaultValue: false
         }
     }
 }
@@ -398,10 +400,9 @@ private processCookies(resp) {
             state.authCustomer = authCustomer
             state.lastLogin = (new Date()).getTime()
         }
+     }
+    debug("Authentication cookies processed", "processCookies()")
     }
-
-    debug("Received sessionID (${state.sessionID}) and afg (${state.afg}) and twoFactorAuthenticationId (${twoFactorAuthenticationId}) and authCustomer (${authCustomer})", "getSystemAuthID()")
-}
 
 /******************************************************************************
 # Purpose: Get the authentication values used for API calls
@@ -482,7 +483,6 @@ private getPanelID() {
         // fetch the account ID
         httpGet(params) { resp ->
             def json = parseJson(resp.data.text)
-            debug(json)
             accountID = json.data[0].id
 
             debug("Received accountID (${accountID})", "getPanelID()")
@@ -740,7 +740,6 @@ private getStandardHeaders(accept="json", options = []) {
         headers['Cookie'] = getCookieString()
     }
 
-    debug(headers)
     return headers
 }
 
