@@ -117,6 +117,7 @@ def updated() {
 
         // update child devices after app updated
         updateChildDevices()
+        createStatusDevice()
 
         initialize()
     }
