@@ -84,6 +84,7 @@ def installed() {
 
         // create child devices
         createChildDevices()
+        createStatusDevice()
 
         initialize()
     }
@@ -525,20 +526,21 @@ private ensureAuth() {
 }
 
 /******************************************************************************
-# Purpose: Get the current status of the alarm system
+# Purpose: Retrieve and synchronize the current alarm panel status
 #
-# Details: Determine whether the system is disarmed, armed stay, or armed away
-#
+# Details: Determine whether the panel is disarmed, armed stay, or armed away.
+# Update the three control switches and the read-only status indicator.
+# Mark unrecognized status values as invalid.
 ******************************************************************************/
 private getSystemStatus() {
-    ensureAuth()
-
-    params = [
-        uri : "https://www.alarm.com/web/api/devices/partitions/${state.panelID}",
-        headers : getStandardHeaders()
-    ]
-
     try {
+        ensureAuth()
+
+        params = [
+            uri : "https://www.alarm.com/web/api/devices/partitions/${state.panelID}",
+            headers : getStandardHeaders()
+        ]
+
         httpGet(params) { resp ->
             def json = parseJson(resp.data.text)
             def current_status = json.data.attributes.state
@@ -553,10 +555,37 @@ private getSystemStatus() {
             }
 
             debug("Alarm.com returned a panel status of: ${current_status} - ${status_key}", "getSystemStatus()")
-            updateHubStatus(status_key)
+
+            def statusDevice = getChildDevice("${state.panelID}-status")
+
+            if (status_key) {
+                updateHubStatus(status_key)
+
+                def modeMap = [
+                    disarm: "disarmed",
+                    armstay: "stay",
+                    armaway: "away"
+                ]
+
+                if (statusDevice) {
+                    statusDevice.updateStatus(modeMap[status_key])
+                }
+            } else {
+                log.warn("Alarm.com returned an unrecognized panel status: ${current_status}")
+
+                if (statusDevice) {
+                    statusDevice.updateStatus("unknown")
+                }
+            }
         }
     } catch (e) {
         logError("getSystemStatus", e)
+
+        def statusDevice = getChildDevice("${state.panelID}-status")
+
+        if (statusDevice) {
+            statusDevice.updateStatus("unknown")
+        }
     }
 }
 
@@ -634,10 +663,10 @@ private updateHubStatus(switchType) {
 }
 
 /******************************************************************************
-# Purpose: Create child devices; One for each: disarm, armstay, armaway
+# Purpose: Create the three control switches: disarm, armstay, armaway
 #
-# Details: This will usually be done when the ADC app has been newly installed
-# or updated; If a child device already exists, it will be ignored
+# Details: Called during app installation. Existing devices are preserved;
+# only missing control switches are created.
 ******************************************************************************/
 private createChildDevices() {
     getSwitchTypes().each { switchType ->
@@ -647,6 +676,32 @@ private createChildDevices() {
             debug("Creating child device: ${state.panelID}-${switchType}", "createChildDevices()")
             createChildDevice(switchType)
         }
+    }
+}
+
+/******************************************************************************
+# Purpose: Create the read-only armed/disarmed status indicator
+#
+# Details: Uses the panel ID as part of the device identifier.
+# Preserves the existing device if already created.
+******************************************************************************/
+private createStatusDevice() {
+    def dni = "${state.panelID}-status"
+
+    if (!getChildDevice(dni)) {
+        addChildDevice(
+            "jmpierce",
+            "Alarm.com Armed Status",
+            dni,
+            null,
+            [
+                label: "ADC Armed Status",
+                name: "ADC Armed Status",
+                isComponent: false
+            ]
+        )
+
+        debug("Created child device: ${dni}", "createStatusDevice()")
     }
 }
 
@@ -692,18 +747,29 @@ private updateChildDevices() {
 }
 
 /******************************************************************************
-# Purpose: Delete all child devices
+# Purpose: Remove all Alarm.com child devices
 #
-# Details:
-#
+# Details: Deletes existing control switches and the status indicator.
+# Skips devices that have already been removed.
 ******************************************************************************/
 private removeChildDevices() {
     def switchTypes = getSwitchTypes()
 
     try {
         switchTypes.each { switchType ->
-            debug("Removing child device: ${state.panelID}-${switchType}", "removeChildDevices()")
-            deleteChildDevice("${state.panelID}-${switchType}")
+            def dni = "${state.panelID}-${switchType}"
+
+            if (getChildDevice(dni)) {
+                debug("Removing child device: ${dni}", "removeChildDevices()")
+                deleteChildDevice(dni)
+            }
+        }
+
+        def statusDni = "${state.panelID}-status"
+
+        if (getChildDevice(statusDni)) {
+            debug("Removing child device: ${statusDni}", "removeChildDevices()")
+            deleteChildDevice(statusDni)
         }
     } catch (e) {
         logError("removeChildDevices", e)
