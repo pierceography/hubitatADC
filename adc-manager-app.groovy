@@ -43,7 +43,9 @@
  *    2020-05-27  Jeff Pierce  Fixed a bug that created switches even with a bad auth attempt
  *    2020-05-31  Jeff Pierce  Added additional polling options, fixed default value in polling bug
  *    2022-03-23  John Russell Fixed: Issue #1 Two-Factor Authentication Problem
- *    2022-03-26  John Russell Lint and comment cleanup
+ *    2022-03-26  John Russell  Lint and comment cleanup
+ *    2026-11-19  rjl77        Forked project for continued development
+ *    2026-11-19  rjl77        Removed sensitive authentication logging
  *
  */
 
@@ -69,7 +71,7 @@ preferences {
 def installed() {
     passwordEncryption()
 
-    debug("Installed with settings: ${settings}", "installed()")
+    debug("Installation completed", "installed()")
 
     if (sanityCheck()) {
         // app installed, acquire panelID
@@ -82,13 +84,14 @@ def installed() {
 
         // create child devices
         createChildDevices()
+        createStatusDevice()
 
         initialize()
     }
 }
 
 def uninstalled() {
-    debug("Uninstalling with settings: ${settings}", "uninstalled()")
+    debug("Uninstalling ADC Manager", "uninstalled()")
     unschedule()
 
     removeChildDevices()
@@ -101,7 +104,7 @@ def updated() {
     // handle password encryption
     passwordEncryption()
 
-    debug("Updated with settings: ${settings}", "updated()")
+    debug("Configuration updated", "updated()")
 
     if (sanityCheck()) {
         // app updated, re-acquire panelID
@@ -189,7 +192,10 @@ def mainPage() {
             input "encryptPassword", "bool", title: "Encrypt Password", description: "The password will be encrypted when stored on the hub", defaultValue: true
         }
         section {
-            input "debugMode", "bool", title: "Enable debugging", defaultValue: true
+            input "enableControls", "bool", title: "Enable alarm control switches", description: "Allow Hubitat switches to arm or disarm the alarm panel", defaultValue: false
+        }
+        section {
+            input "debugMode", "bool", title: "Enable debugging", defaultValue: false
         }
     }
 }
@@ -211,6 +217,12 @@ def pollSystemStatus() {
 #
 ******************************************************************************/
 def switchStateUpdated(switchType, switchState) {
+    if (settings.enableControls != true) {
+        log.warn("Alarm control command ignored: control switches are disabled")
+        pollSystemStatus()
+        return
+    }
+
     debug("Setting ${switchType} to ${switchState}", "switchStateUpdated()")
 
     // update the child device
@@ -398,10 +410,9 @@ private processCookies(resp) {
             state.authCustomer = authCustomer
             state.lastLogin = (new Date()).getTime()
         }
+     }
+    debug("Authentication cookies processed", "processCookies()")
     }
-
-    debug("Received sessionID (${state.sessionID}) and afg (${state.afg}) and twoFactorAuthenticationId (${twoFactorAuthenticationId}) and authCustomer (${authCustomer})", "getSystemAuthID()")
-}
 
 /******************************************************************************
 # Purpose: Get the authentication values used for API calls
@@ -482,7 +493,6 @@ private getPanelID() {
         // fetch the account ID
         httpGet(params) { resp ->
             def json = parseJson(resp.data.text)
-            debug(json)
             accountID = json.data[0].id
 
             debug("Received accountID (${accountID})", "getPanelID()")
@@ -516,20 +526,21 @@ private ensureAuth() {
 }
 
 /******************************************************************************
-# Purpose: Get the current status of the alarm system
+# Purpose: Retrieve and synchronize the current alarm panel status
 #
-# Details: Determine whether the system is disarmed, armed stay, or armed away
-#
+# Details: Determine whether the panel is disarmed, armed stay, or armed away.
+# Update the three control switches and the read-only status indicator.
+# Mark unrecognized status values as invalid.
 ******************************************************************************/
 private getSystemStatus() {
-    ensureAuth()
-
-    params = [
-        uri : "https://www.alarm.com/web/api/devices/partitions/${state.panelID}",
-        headers : getStandardHeaders()
-    ]
-
     try {
+        ensureAuth()
+
+        params = [
+            uri : "https://www.alarm.com/web/api/devices/partitions/${state.panelID}",
+            headers : getStandardHeaders()
+        ]
+
         httpGet(params) { resp ->
             def json = parseJson(resp.data.text)
             def current_status = json.data.attributes.state
@@ -544,10 +555,37 @@ private getSystemStatus() {
             }
 
             debug("Alarm.com returned a panel status of: ${current_status} - ${status_key}", "getSystemStatus()")
-            updateHubStatus(status_key)
+
+            def statusDevice = getChildDevice("${state.panelID}-status")
+
+            if (status_key) {
+                updateHubStatus(status_key)
+
+                def modeMap = [
+                    disarm: "disarmed",
+                    armstay: "stay",
+                    armaway: "away"
+                ]
+
+                if (statusDevice) {
+                    statusDevice.updateStatus(modeMap[status_key])
+                }
+            } else {
+                log.warn("Alarm.com returned an unrecognized panel status: ${current_status}")
+
+                if (statusDevice) {
+                    statusDevice.updateStatus("unknown")
+                }
+            }
         }
     } catch (e) {
         logError("getSystemStatus", e)
+
+        def statusDevice = getChildDevice("${state.panelID}-status")
+
+        if (statusDevice) {
+            statusDevice.updateStatus("unknown")
+        }
     }
 }
 
@@ -592,26 +630,43 @@ private setSystemStatus(status_key) {
 }
 
 /******************************************************************************
-# Purpose: Determine if the panel status has been updated, set switches
+# Purpose: Synchronize Hubitat switches with the actual alarm panel status
 #
-# Details: This is generally used if the panel has been updated outside of
-# this app (e.g. from the panel or another app)
+# Details: Reconcile all switch states on every successful poll, correcting
+# any discrepancies even when the panel status has not changed.
+# Only send events when a switch's state differs from the expected state.
 ******************************************************************************/
 private updateHubStatus(switchType) {
+    if (!getSwitchTypes().contains(switchType)) {
+        log.warn("Unknown alarm status: ${switchType}")
+        return
+    }
+
     if (state.currentStatus != switchType) {
         debug("System status updated to: ${switchType}", "updateHubStatus()")
-
-        updateSwitch(switchType, "on")
-        toggleOtherSwitchesTo(switchType, "off")
-        state.currentStatus = switchType
     }
+
+    // Reconcile every switch against the actual panel status
+    getSwitchTypes().each { type ->
+        def device = getChildDevice("${state.panelID}-${type}")
+
+        if (device) {
+            def expectedState = (type == switchType) ? "on" : "off"
+
+            if (device.currentValue("switch") != expectedState) {
+                device.sendEvent(name: "switch", value: expectedState)
+            }
+        }
+    }
+
+    state.currentStatus = switchType
 }
 
 /******************************************************************************
-# Purpose: Create child devices; One for each: disarm, armstay, armaway
+# Purpose: Create the three control switches: disarm, armstay, armaway
 #
-# Details: This will usually be done when the ADC app has been newly installed
-# or updated; If a child device already exists, it will be ignored
+# Details: Called during app installation. Existing devices are preserved;
+# only missing control switches are created.
 ******************************************************************************/
 private createChildDevices() {
     getSwitchTypes().each { switchType ->
@@ -621,6 +676,32 @@ private createChildDevices() {
             debug("Creating child device: ${state.panelID}-${switchType}", "createChildDevices()")
             createChildDevice(switchType)
         }
+    }
+}
+
+/******************************************************************************
+# Purpose: Create the read-only armed/disarmed status indicator
+#
+# Details: Uses the panel ID as part of the device identifier.
+# Preserves the existing device if already created.
+******************************************************************************/
+private createStatusDevice() {
+    def dni = "${state.panelID}-status"
+
+    if (!getChildDevice(dni)) {
+        addChildDevice(
+            "jmpierce",
+            "Alarm.com Armed Status",
+            dni,
+            null,
+            [
+                label: "ADC Armed Status",
+                name: "ADC Armed Status",
+                isComponent: false
+            ]
+        )
+
+        debug("Created child device: ${dni}", "createStatusDevice()")
     }
 }
 
@@ -666,18 +747,29 @@ private updateChildDevices() {
 }
 
 /******************************************************************************
-# Purpose: Delete all child devices
+# Purpose: Remove all Alarm.com child devices
 #
-# Details:
-#
+# Details: Deletes existing control switches and the status indicator.
+# Skips devices that have already been removed.
 ******************************************************************************/
 private removeChildDevices() {
     def switchTypes = getSwitchTypes()
 
     try {
         switchTypes.each { switchType ->
-            debug("Removing child device: ${state.panelID}-${switchType}", "removeChildDevices()")
-            deleteChildDevice("${state.panelID}-${switchType}")
+            def dni = "${state.panelID}-${switchType}"
+
+            if (getChildDevice(dni)) {
+                debug("Removing child device: ${dni}", "removeChildDevices()")
+                deleteChildDevice(dni)
+            }
+        }
+
+        def statusDni = "${state.panelID}-status"
+
+        if (getChildDevice(statusDni)) {
+            debug("Removing child device: ${statusDni}", "removeChildDevices()")
+            deleteChildDevice(statusDni)
         }
     } catch (e) {
         logError("removeChildDevices", e)
@@ -740,7 +832,6 @@ private getStandardHeaders(accept="json", options = []) {
         headers['Cookie'] = getCookieString()
     }
 
-    debug(headers)
     return headers
 }
 

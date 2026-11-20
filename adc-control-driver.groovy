@@ -24,6 +24,7 @@
  *    ----        ---            ----
  *    2020-05-14  Jeff Pierce    Original Creation
  *    2020-05-19  Jeff Pierce    Migrated all API calls to parent app
+ *    2026-11-19  rjl77    Clarified switch command debug messages
  *
  */
 
@@ -66,7 +67,7 @@ def refresh() {
 
 
 def installed() {
-    debug("Switch installed", "updated()")
+    debug("Switch installed", "installed()")
     updated()
 }
 
@@ -95,13 +96,13 @@ def getCurrentSwitchState() {
 
 
 def on() {
-	debug("ADC ${actionType} switched to ON", "on()")
+	debug("ADC ${actionType} ON requested", "on()")
 	parent.switchStateUpdated(actionType, "on")
 }
 
 
 def off() {
-	debug("ADC ${actionType} switched to OFF", "off()")
+	debug("ADC ${actionType} OFF requested", "off()")
 	parent.switchStateUpdated(actionType, "off")
 }
 
